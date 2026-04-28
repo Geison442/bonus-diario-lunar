@@ -92,31 +92,132 @@
     } catch(e) { return null; }
   }
 
-  // ─── ORACLE API ───
+  // ─── ORÁCULO LOCAL (sem API externa) ───
+  // Banco de insights: 4 fases do ciclo × 4 fases lunares = 16 combinações × 2-3 insights = 36+ únicos
+  var INSIGHTS_BANK = {
+    // ── Fase 1: RENOVAÇÃO ──
+    '1_new': [
+      'A lua nova e sua fase de renovação se encontram num momento raro de recomeço. Plante intenções pequenas — elas crescerão mais fortes do que você imagina.',
+      'Tudo que você cultiva no silêncio desta fase voltará multiplicado. O descanso de hoje é a fundação da força de amanhã.',
+      'O céu vazio e o útero vazio compartilham a mesma promessa: tudo é possível quando se honra o nada antes do tudo.'
+    ],
+    '1_waxing': [
+      'A lua cresce enquanto seu corpo pede recolhimento. Não force o ritmo dela — sua sabedoria está em respeitar o seu próprio.',
+      'Mesmo na fase de renovação, sementes invisíveis estão germinando. Confie no que você não vê ainda.'
+    ],
+    '1_full': [
+      'A lua brilha cheia do lado de fora enquanto você se recolhe. Permita-se essa contradição — ela é sagrada e te protege da exaustão coletiva.',
+      'Hoje a lua chama você para ser vista, mas seu corpo pede silêncio. Escolha você. Sempre.'
+    ],
+    '1_waning': [
+      'Lua minguante e fase de renovação são gêmeas: ambas pedem soltura. Deixe ir o que tentou carregar até aqui.',
+      'O ciclo lunar e o seu se alinham num gesto de soltar. O que você libera agora abre espaço para o renascer.'
+    ],
+    // ── Fase 2: CRESCIMENTO ──
+    '2_new': [
+      'Lua nova e sua primavera interior dançam juntas. É o momento mais fértil para começar — diga sim àquela ideia que insiste em voltar.',
+      'A semente está plantada e o solo está úmido. Sua missão hoje é apenas regar com presença.'
+    ],
+    '2_waxing': [
+      'Você cresce na mesma direção da lua. Seu magnetismo está expandindo — comece o que estava só na imaginação.',
+      'A energia que sobe em você é a mesma que sobe no céu. Use essa onda — apresente-se, escreva, ligue, comece.',
+      'Tudo o que você iniciar nestes dias terá vento favorável. Confie no impulso, mas mantenha os pés na terra.'
+    ],
+    '2_full': [
+      'Sua primavera encontra a lua cheia — e isso é poder amplificado. Coloque seu nome onde você merece estar.',
+      'Você está crescendo e o universo está iluminando. Seja vista. Hoje, brilhar não é vaidade — é honra.'
+    ],
+    '2_waning': [
+      'Mesmo enquanto a lua diminui, sua energia pessoal sobe. Use essa assimetria a seu favor — finalize o velho e prepare o novo.',
+      'Você está em fase de iniciar enquanto o coletivo está soltando. Esse é seu trampolim secreto.'
+    ],
+    // ── Fase 3: FORÇA ──
+    '3_new': [
+      'Sua força interna está acesa enquanto o céu pede recolhimento. Não tenha medo de brilhar mesmo quando a lua se cala.',
+      'Você é fogo no escuro. Hoje sua presença é luz para alguém que precisa.'
+    ],
+    '3_waxing': [
+      'Energia ascendente em você e no céu. Hoje o cosmos pede liderança consciente — diga aquilo que precisa ser dito com amor.',
+      'Você está magnética. Pessoas certas vão aparecer. Mantenha-se aberta sem se entregar inteira.'
+    ],
+    '3_full': [
+      'Você está no pico da sua expressão. A lua cheia amplifica o que já brilha em você — use essa energia para ser vista, para liderar, para criar sem medo.',
+      'Hoje é dia de coroar. Sua força e a lua cheia se encontram no zênite do ciclo. O que você pediu há semanas pode chegar agora.',
+      'O universo prepara o palco. Seu corpo é o instrumento. Sua voz é a música. Toque sem pedir licença.'
+    ],
+    '3_waning': [
+      'Mesmo com a lua minguando, sua força não recua. Conduza com firmeza, mas escolha onde investir essa potência — nem tudo merece seu fogo.',
+      'Você ainda brilha enquanto o céu se recolhe. Use isso para fechar ciclos com elegância.'
+    ],
+    // ── Fase 4: SABEDORIA ──
+    '4_new': [
+      'Outono interior e lua nova: o silêncio se aprofunda. Aqui mora a verdade que você vinha evitando — escute sem julgar.',
+      'Quando a lua se esconde e seu corpo se sensibiliza, a intuição chega como sussurro. Anote tudo, mesmo o estranho.'
+    ],
+    '4_waxing': [
+      'Sua sensibilidade está aguda enquanto a lua cresce. Use essa lente afinada para revisar — não para se cobrar.',
+      'Você vê demais hoje. Lembre-se: nem tudo o que você sente sobre os outros é seu. Devolva o que não é seu.'
+    ],
+    '4_full': [
+      'Lua cheia + outono interior = revelação. O que você precisava ver finalmente fica claro. Seja gentil com a verdade que aparecer.',
+      'A lua brilha enquanto você sente tudo. Talvez chore. Tudo bem. Lágrima de mulher cíclica é alquimia, não fraqueza.'
+    ],
+    '4_waning': [
+      'Lua e corpo soltam juntos. Esta é a fase mais limpa do mês — escreva, queime, perdoe, libere. Amanhã renasce.',
+      'Você está em duplo soltar. Permita-se desfazer o que não cabe mais. O vazio que vem em seguida é sagrado.',
+      'Sua sabedoria culmina aqui: você sabe o que precisa morrer. E sabe que não precisa explicar isso para ninguém.'
+    ]
+  };
+
+  function getLunarPhaseKey() {
+    try {
+      var lp = getLunarPhase();
+      var n = (lp.name || '').toLowerCase();
+      if (n.indexOf('nova') !== -1) return 'new';
+      if (n.indexOf('cheia') !== -1) return 'full';
+      if (n.indexOf('crescente') !== -1 || n.indexOf('quarto crescente') !== -1) return 'waxing';
+      return 'waning';
+    } catch(e) { return 'new'; }
+  }
+
+  function generateLocalInsight() {
+    // Reusa insight do dia se já gerado hoje — coerência diária
+    var todayKey = new Date().toISOString().split('T')[0];
+    var savedDate = lsGet('insight_data');
+    var savedInsight = lsGet('insight_atual');
+    if (savedDate === todayKey && savedInsight) return savedInsight;
+
+    var phaseId = getPhaseByDay(state.currentDay);
+    var lunarKey = getLunarPhaseKey();
+    var combo = phaseId + '_' + lunarKey;
+    var pool = INSIGHTS_BANK[combo] || INSIGHTS_BANK['1_new'];
+
+    var recent = lsGetJSON('recentInsights') || [];
+    var available = pool.filter(function(ins) { return recent.indexOf(ins) === -1; });
+    if (!available.length) available = pool.slice();
+
+    var chosen = available[Math.floor(Math.random() * available.length)];
+    recent.push(chosen);
+    if (recent.length > 7) recent = recent.slice(-7);
+    lsSetJSON('recentInsights', recent);
+    lsSet('insight_atual', chosen);
+    lsSet('insight_data', todayKey);
+    return chosen;
+  }
+
+  // Mantém assinatura compatível com chamadas existentes — Promise<string|null>
   function callGeminiOracle(prompt, signal) {
-    var apiKey = "";
-    if (!apiKey) return Promise.resolve("O oráculo ainda não foi configurado. Adicione uma chave de API para ativar os insights.");
-    var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey;
-    var delays = [1000, 2000, 4000, 8000, 16000];
-    function attempt(i) {
-      if (signal && signal.aborted) return Promise.resolve(null);
-      return fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-        signal: signal
-      }).then(function(res) {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
-      }).then(function(data) {
-        return (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text) || "O oráculo está em silêncio. Ouça sua intuição.";
-      }).catch(function(e) {
-        if (e.name === 'AbortError') return null;
-        if (i >= delays.length) return "As estrelas estão nubladas agora. Tente novamente mais tarde.";
-        return new Promise(function(r) { setTimeout(r, delays[i]); }).then(function() { return attempt(i + 1); });
-      });
-    }
-    return attempt(0);
+    return new Promise(function(resolve) {
+      // Pequeno delay para preservar a sensação ritualística da consulta
+      var timer = setTimeout(function() {
+        if (signal && signal.aborted) { resolve(null); return; }
+        try { resolve(generateLocalInsight()); }
+        catch(e) { resolve('A intuição é o oráculo mais antigo. Confie no que seu corpo já sabe.'); }
+      }, 1100);
+      if (signal) {
+        signal.addEventListener('abort', function() { clearTimeout(timer); resolve(null); });
+      }
+    });
   }
 
   var scriptCache = {};
@@ -243,18 +344,79 @@
 
   var MOODS = ['😌 Calma', '⚡ Energética', '😤 Irritada', '🧠 Focada', '😢 Sensível', '😴 Cansada', '😍 Amorosa', '🌪️ Ansiosa'];
 
-  var T = {
-    primary: '#7C3AED', primaryDk: '#6D28D9',
-    rose: '#7C3AED', roseDk: '#6D28D9',          // aliases para compatibilidade
-    ink: '#FAF5FF', warm: '#E9D5FF',
-    muted: '#C084FC', faint: '#9F67FA',
-    bg: '#170F2E', surface: '#26184A',
-    cream: '#1A0B35', parchment: '#150A2E',
-    soft: '#3D2172', lavender: '#4C2A8C',
-    border: 'rgba(124,58,237,0.25)', borderLt: 'rgba(124,58,237,0.12)',
-    white: '#26184A',                              // usado como surface nos cards JS
-    gold: '#F59E0B', purple: '#C084FC'
+  // ─── SISTEMA DE TEMAS (3 paletas alternáveis) ───
+  var THEMES = {
+    'noite-lunar': {
+      label: 'Noite Lunar', emoji: '🌙', sub: 'mistério e profundidade',
+      primary: '#7C3AED', primaryDk: '#6D28D9',
+      rose: '#7C3AED', roseDk: '#6D28D9',
+      ink: '#FAF5FF', warm: '#E9D5FF',
+      muted: '#C084FC', faint: '#9F67FA',
+      bg: '#170F2E', surface: '#26184A',
+      cream: '#1A0B35', parchment: '#150A2E',
+      soft: '#3D2172', lavender: '#4C2A8C',
+      border: 'rgba(124,58,237,0.25)', borderLt: 'rgba(124,58,237,0.12)',
+      white: '#26184A',
+      gold: '#F59E0B', purple: '#C084FC'
+    },
+    'aurora-boreal': {
+      label: 'Aurora Boreal', emoji: '✨', sub: 'frescor e renovação',
+      primary: '#06B6D4', primaryDk: '#0891B2',
+      rose: '#06B6D4', roseDk: '#0891B2',
+      ink: '#F0F9FF', warm: '#CFFAFE',
+      muted: '#67E8F9', faint: '#22D3EE',
+      bg: '#0D1F2D', surface: '#1A2F3F',
+      cream: '#0F2333', parchment: '#0A1A26',
+      soft: '#1E3A4D', lavender: '#244A5F',
+      border: 'rgba(6,182,212,0.28)', borderLt: 'rgba(6,182,212,0.14)',
+      white: '#1A2F3F',
+      gold: '#FBBF24', purple: '#8B5CF6'
+    },
+    'petala-branca': {
+      label: 'Pétala Branca', emoji: '🌸', sub: 'leveza e clareza diurna',
+      primary: '#7C3AED', primaryDk: '#6D28D9',
+      rose: '#7C3AED', roseDk: '#6D28D9',
+      ink: '#1C1917', warm: '#44403C',
+      muted: '#7C3AED', faint: '#78716C',
+      bg: '#FDF4FF', surface: '#FFFFFF',
+      cream: '#FAE8FF', parchment: '#F5D0FE',
+      soft: '#E9D5FF', lavender: '#C084FC',
+      border: 'rgba(124,58,237,0.22)', borderLt: 'rgba(124,58,237,0.10)',
+      white: '#FFFFFF',
+      gold: '#D97706', purple: '#A855F7'
+    }
   };
+
+  // T começa como cópia mutável do tema padrão — populado por applyTheme no init
+  var T = (function() { var o = {}; var d = THEMES['noite-lunar']; for (var k in d) if (k !== 'label' && k !== 'emoji' && k !== 'sub') o[k] = d[k]; return o; })();
+
+  function applyTheme(id, opts) {
+    var theme = THEMES[id] || THEMES['noite-lunar'];
+    Object.keys(theme).forEach(function(k) {
+      if (k !== 'label' && k !== 'emoji' && k !== 'sub') T[k] = theme[k];
+    });
+    var root = document.documentElement;
+    var cssMap = {
+      '--bg': theme.bg, '--surface': theme.surface,
+      '--primary': theme.primary, '--primary-dk': theme.primaryDk,
+      '--secondary': theme.purple,
+      '--ink': theme.ink, '--warm': theme.warm,
+      '--muted': theme.muted, '--faint': theme.faint,
+      '--cream': theme.cream, '--parchment': theme.parchment,
+      '--soft': theme.soft, '--lavender': theme.lavender,
+      '--border': theme.border, '--border-lt': theme.borderLt,
+      '--white': theme.ink, '--gold': theme.gold, '--purple': theme.purple
+    };
+    Object.keys(cssMap).forEach(function(k) { root.style.setProperty(k, cssMap[k]); });
+    if (document.body) document.body.style.background = theme.bg;
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme.bg);
+    state.theme = id;
+    lsSet('theme', id);
+    if (opts && opts.rerender !== false && document.getElementById('app') && document.getElementById('app').children.length) {
+      render();
+    }
+  }
 
   // ─────────────────────────────────────────────────────────────────────────────
   // APP STATE
@@ -267,7 +429,8 @@
     dailyMode: 'quick',
     suggestedDay: null,
     showSaveMsg: false,
-    oracleAbort: null
+    oracleAbort: null,
+    theme: 'noite-lunar'
   };
   var saveToastTimer = null;
 
@@ -351,6 +514,13 @@
     state.journalData[dayOrKey] = Object.assign({}, prev, data);
     lsSetJSON('journalData', state.journalData);
     showSaveToast();
+    // Marca registro em lua cheia (para conquista) — apenas em dias 1-28 com conteúdo real
+    var n = parseInt(dayOrKey, 10);
+    if (!isNaN(n) && n >= 1 && n <= 28 && (data.mood || data.intention || data.reflectionAnswer)) {
+      try { if (isFullMoonToday()) lsSet('fullMoonEntry', '1'); } catch(e) {}
+    }
+    // Atualiza estado de conquistas — pode disparar toast comemorativo
+    try { checkNewlyUnlockedAchievements(); } catch(e) {}
   }
 
   function showSaveToast() {
@@ -660,7 +830,8 @@
           '</div>' +
         '</button>' +
         desktopNav +
-        '<div style="display:flex;align-items:center;gap:0.625rem">' +
+        '<div style="display:flex;align-items:center;gap:0.5rem">' +
+          '<button type="button" id="header-theme-btn" aria-label="Trocar tema" title="Trocar tema" style="background:' + T.parchment + ';border:1px solid ' + T.border + ';border-radius:50%;width:2.25rem;height:2.25rem;min-width:2.25rem;display:flex;align-items:center;justify-content:center;cursor:pointer;color:' + T.muted + ';font-size:1rem;touch-action:manipulation;flex-shrink:0">🎨</button>' +
           '<div style="text-align:right">' +
             '<p style="font-size:0.8125rem;font-weight:700;color:' + T.ink + ';margin:0;font-variant-numeric:tabular-nums"><span id="live-clock">--:--</span></p>' +
             '<p style="font-size:0.65rem;color:' + T.purple + ';margin:0">' + lunarPhase.emoji + ' ' + lunarPhase.name + '</p>' +
@@ -756,7 +927,12 @@
     mapItems.forEach(function(item) {
       rows += '<div style="display:flex;justify-content:space-between;font-size:0.75rem;padding:0.375rem 0;border-bottom:1px solid ' + T.borderLt + '"><span style="color:' + T.faint + '">' + item.l + '</span><span style="font-weight:700;color:' + T.ink + '">' + item.v + '</span></div>';
     });
-    return btns + rows;
+    // Quick actions: tema + conquistas
+    var actions = '<div style="display:flex;gap:0.5rem;margin-top:0.875rem">' +
+      '<button type="button" id="fab-action-theme" style="flex:1;padding:0.625rem 0.5rem;border-radius:0.875rem;border:1px solid ' + T.border + ';background:' + T.cream + ';color:' + T.ink + ';font-weight:700;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.375rem;font-family:var(--sans);min-height:44px;touch-action:manipulation">🎨 Tema</button>' +
+      '<button type="button" id="fab-action-achievements" style="flex:1;padding:0.625rem 0.5rem;border-radius:0.875rem;border:1px solid ' + T.border + ';background:' + T.cream + ';color:' + T.ink + ';font-weight:700;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.375rem;font-family:var(--sans);min-height:44px;touch-action:manipulation">🏆 Conquistas</button>' +
+    '</div>';
+    return btns + rows + actions;
   }
 
   function renderSaveToast() {
@@ -778,6 +954,8 @@
     var ps = getProgressStats();
     var ins = getInsights();
     var todayStr = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    // Capitaliza apenas a primeira letra do dia da semana, mantém "de abril" minúsculo
+    todayStr = todayStr.charAt(0).toUpperCase() + todayStr.slice(1);
 
     var html = '<div style="max-width:56rem;margin:0 auto;display:flex;flex-direction:column;gap:1.25rem;padding-bottom:1.5rem">';
 
@@ -791,26 +969,26 @@
             '</div>' +
             '<h2 class="hero-title">Fase de ' + phase.name + '</h2>' +
             '<p style="font-size:0.8125rem;color:' + T.muted + ';margin:0">' + phase.season + ' · ' + phase.days + '</p>' +
-            '<p style="font-size:0.75rem;color:' + T.faint + ';margin:0.25rem 0 0;text-transform:capitalize">' + getDynamicGreeting() + ' · ' + todayStr + '</p>' +
+            '<p style="font-size:0.75rem;color:' + T.faint + ';margin:0.25rem 0 0">' + getDynamicGreeting() + ' · ' + todayStr + '</p>' +
           '</div>' +
-          '<div style="padding:0.875rem;border-radius:1.25rem;background:rgba(255,255,255,0.65);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.9);flex-shrink:0">' + icon(phase.icon, 28, phase.hex) + '</div>' +
+          '<div style="padding:0.875rem;border-radius:1.25rem;background:rgba(255,255,255,0.08);backdrop-filter:blur(8px);border:1px solid rgba(192,132,252,0.3);flex-shrink:0">' + icon(phase.icon, 28, phase.hex) + '</div>' +
         '</div>' +
         '<p style="color:' + T.ink + ';line-height:1.7;margin-bottom:1.25rem;font-weight:500;font-size:0.9rem">' + phase.desc + '</p>' +
-        '<div style="margin-bottom:1.25rem;padding:1rem 1.125rem;background:rgba(255,255,255,0.55);border-radius:1rem;border:1px solid rgba(255,255,255,0.85);backdrop-filter:blur(8px)">' +
-          '<p style="font-size:0.65rem;color:' + T.muted + ';text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin:0 0 0.5rem">✨ Afirmação do Dia</p>' +
-          '<p style="font-family:var(--serif);font-size:1rem;color:' + T.ink + ';font-style:italic;margin:0">"' + phase.affirmation + '"</p>' +
+        '<div style="margin-bottom:1.25rem;padding:1rem 1.125rem;background:rgba(255,255,255,0.06);border-radius:1rem;border:1px solid rgba(192,132,252,0.2);backdrop-filter:blur(8px)">' +
+          '<p style="font-size:0.7rem;color:' + T.muted + ';text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin:0 0 0.5rem">✨ Afirmação do Dia</p>' +
+          '<p style="font-family:var(--serif);font-size:1rem;color:' + T.ink + ';font-style:italic;line-height:1.7;margin:0">"' + phase.affirmation + '"</p>' +
         '</div>';
 
     // Rituals + Focus
     html += '<div class="grid-2col" style="margin-bottom:1.25rem">' +
-      '<div style="background:rgba(255,255,255,0.5);border-radius:0.875rem;padding:0.875rem;border:1px solid rgba(255,255,255,0.85)">' +
-        '<p style="font-size:0.65rem;font-weight:700;color:' + T.muted + ';text-transform:uppercase;letter-spacing:0.08em;margin:0 0 0.5rem">🌿 Rituais</p>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:0.25rem">' + phase.rituals.map(function(r) { return tag(r); }).join('') + '</div>' +
+      '<div style="background:rgba(255,255,255,0.06);border-radius:1rem;padding:0.875rem;border:1px solid rgba(192,132,252,0.2)">' +
+        '<p style="font-size:0.7rem;font-weight:700;color:' + T.muted + ';text-transform:uppercase;letter-spacing:0.1em;margin:0 0 0.625rem">🌿 Rituais</p>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:0.375rem">' + phase.rituals.map(function(r) { return tag(r, 'rgba(124,58,237,0.25)', T.ink); }).join('') + '</div>' +
       '</div>' +
-      '<div style="background:rgba(255,255,255,0.5);border-radius:0.875rem;padding:0.875rem;border:1px solid rgba(255,255,255,0.85)">' +
-        '<p style="font-size:0.65rem;font-weight:700;color:' + T.muted + ';text-transform:uppercase;letter-spacing:0.08em;margin:0 0 0.5rem">🎯 Foco</p>' +
-        '<p style="font-weight:700;color:' + T.ink + ';font-size:0.875rem;margin:0 0 0.375rem">' + phase.focus + '</p>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:0.25rem">' + phase.keywords.map(function(k) { return tag(k, 'rgba(255,255,255,0.8)', T.warm); }).join('') + '</div>' +
+      '<div style="background:rgba(255,255,255,0.06);border-radius:1rem;padding:0.875rem;border:1px solid rgba(192,132,252,0.2)">' +
+        '<p style="font-size:0.7rem;font-weight:700;color:' + T.muted + ';text-transform:uppercase;letter-spacing:0.1em;margin:0 0 0.625rem">🎯 Foco</p>' +
+        '<p style="font-weight:700;color:' + T.ink + ';font-size:0.875rem;line-height:1.55;margin:0 0 0.5rem">' + phase.focus + '</p>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:0.375rem">' + phase.keywords.map(function(k) { return tag(k, 'rgba(124,58,237,0.25)', T.ink); }).join('') + '</div>' +
       '</div>' +
     '</div>';
 
@@ -1333,6 +1511,222 @@
     if (el) { el.innerHTML = ''; el.classList.add('hidden'); }
   }
 
+  // ─── CONFIRM MODAL ───
+  function showConfirmModal(opts) {
+    var el = document.getElementById('confirm-modal');
+    if (!el) return;
+    el.innerHTML = '<div id="confirm-overlay" style="position:fixed;inset:0;z-index:220;display:flex;align-items:center;justify-content:center;padding:1rem;background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)">' +
+      '<div style="position:relative;width:100%;max-width:24rem;background:' + T.surface + ';border-radius:1.75rem;padding:1.75rem;box-shadow:0 20px 60px rgba(0,0,0,0.55);border:1px solid ' + T.border + ';animation:scaleIn 0.3s cubic-bezier(0.34,1.56,0.64,1)">' +
+        '<div style="text-align:center;margin-bottom:1.25rem">' +
+          '<div style="display:inline-flex;align-items:center;justify-content:center;width:3.75rem;height:3.75rem;border-radius:50%;background:' + T.cream + ';margin-bottom:0.875rem;font-size:1.875rem;border:1px solid ' + T.border + '">' + (opts.iconEmoji || '✨') + '</div>' +
+          '<h3 style="font-family:var(--serif);font-size:clamp(1.125rem,4vw,1.3125rem);color:' + T.ink + ';font-weight:700;margin:0 0 0.5rem">' + esc(opts.title) + '</h3>' +
+          '<p style="font-size:0.875rem;color:' + T.muted + ';line-height:1.6;margin:0">' + esc(opts.desc) + '</p>' +
+          (opts.note ? '<p style="font-size:0.75rem;color:' + T.faint + ';margin:0.625rem 0 0;font-style:italic">' + esc(opts.note) + '</p>' : '') +
+        '</div>' +
+        '<div style="display:flex;gap:0.625rem">' +
+          '<button class="btn btn-md btn-muted" id="confirm-cancel" style="flex:1">' + esc(opts.cancelText || 'Cancelar') + '</button>' +
+          '<button class="btn btn-md btn-primary" id="confirm-ok" style="flex:1">' + esc(opts.ctaText) + '</button>' +
+        '</div>' +
+      '</div></div>';
+    el.classList.remove('hidden');
+    function close() { el.innerHTML = ''; el.classList.add('hidden'); }
+    document.getElementById('confirm-cancel').onclick = close;
+    document.getElementById('confirm-overlay').onclick = function(e) { if (e.target.id === 'confirm-overlay') close(); };
+    document.getElementById('confirm-ok').onclick = function() { close(); if (opts.onConfirm) opts.onConfirm(); };
+  }
+
+  // ─── LOADING OVERLAY ───
+  function showLoadingOverlay(text) {
+    var el = document.getElementById('loading-overlay');
+    if (!el) return;
+    el.innerHTML = '<div style="position:fixed;inset:0;z-index:230;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)">' +
+      '<div style="background:' + T.surface + ';padding:2rem 2.5rem;border-radius:1.5rem;display:flex;flex-direction:column;align-items:center;gap:1rem;border:1px solid ' + T.border + ';box-shadow:0 20px 60px rgba(0,0,0,0.5);max-width:18rem;text-align:center">' +
+        '<div style="position:relative;width:3.5rem;height:3.5rem">' +
+          '<div style="position:absolute;inset:0;border-radius:50%;border:3px solid ' + T.soft + '"></div>' +
+          '<div style="position:absolute;inset:0;border-radius:50%;border:3px solid transparent;border-top-color:' + T.rose + ';animation:spin 1s linear infinite"></div>' +
+          '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.25rem">🌙</div>' +
+        '</div>' +
+        '<p style="font-size:0.9375rem;color:' + T.ink + ';margin:0;font-weight:600">' + esc(text || 'Processando...') + '</p>' +
+      '</div></div>';
+    el.classList.remove('hidden');
+  }
+
+  function hideLoadingOverlay() {
+    var el = document.getElementById('loading-overlay');
+    if (el) { el.innerHTML = ''; el.classList.add('hidden'); }
+  }
+
+  // ─── SUCCESS TOAST (overlay topo) ───
+  function showSuccessToast(text) {
+    var el = document.getElementById('success-toast-wrap');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'success-toast-wrap';
+      document.body.appendChild(el);
+    }
+    el.innerHTML = '<div style="position:fixed;top:calc(1rem + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:240;background:' + T.surface + ';color:' + T.ink + ';padding:0.875rem 1.5rem;border-radius:9999px;box-shadow:0 8px 28px rgba(0,0,0,0.45);display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;font-weight:600;animation:fadeInDown 0.4s ease;border:1px solid ' + T.border + ';white-space:nowrap;max-width:calc(100vw - 2rem)">' +
+      '<span style="color:#22c55e;font-size:1.125rem">✓</span> ' + esc(text) + '</div>';
+    setTimeout(function() { if (el) el.innerHTML = ''; }, 2800);
+  }
+
+  // ─── THEME PICKER MODAL ───
+  function showThemeModal() {
+    var el = document.getElementById('theme-modal');
+    if (!el) return;
+    var current = state.theme || 'noite-lunar';
+    var cards = '';
+    Object.keys(THEMES).forEach(function(id) {
+      var th = THEMES[id];
+      var active = id === current;
+      cards += '<button type="button" data-theme-id="' + id + '" style="display:flex;align-items:center;gap:0.875rem;padding:0.875rem;border-radius:1rem;border:2px solid ' + (active ? th.primary : T.border) + ';background:' + (active ? th.bg : T.cream) + ';cursor:pointer;text-align:left;transition:all 0.2s;font-family:var(--sans);min-height:64px;touch-action:manipulation;width:100%">' +
+        '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:3rem;height:3rem;min-width:3rem;border-radius:50%;background:linear-gradient(135deg,' + th.bg + ',' + th.surface + ');border:1px solid ' + th.border + ';font-size:1.25rem">' + th.emoji + '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<p style="font-weight:700;color:' + (active ? th.primary : T.ink) + ';font-size:0.9375rem;margin:0 0 0.125rem">' + th.label + '</p>' +
+          '<p style="font-size:0.75rem;color:' + T.faint + ';margin:0">' + th.sub + '</p>' +
+        '</div>' +
+        '<div style="display:flex;gap:0.25rem;flex-shrink:0">' +
+          '<span style="width:0.875rem;height:0.875rem;border-radius:50%;background:' + th.primary + ';border:1px solid ' + th.border + '"></span>' +
+          '<span style="width:0.875rem;height:0.875rem;border-radius:50%;background:' + th.purple + ';border:1px solid ' + th.border + '"></span>' +
+          '<span style="width:0.875rem;height:0.875rem;border-radius:50%;background:' + th.gold + ';border:1px solid ' + th.border + '"></span>' +
+        '</div>' +
+        (active ? '<span style="position:absolute;top:0.5rem;right:0.5rem;font-size:0.7rem;color:' + th.primary + ';font-weight:700">●</span>' : '') +
+      '</button>';
+    });
+    el.innerHTML = '<div id="theme-overlay" style="position:fixed;inset:0;z-index:215;display:flex;align-items:center;justify-content:center;padding:1rem;background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)">' +
+      '<div style="position:relative;width:100%;max-width:24rem;background:' + T.surface + ';border-radius:1.75rem;padding:1.5rem;box-shadow:0 20px 60px rgba(0,0,0,0.55);border:1px solid ' + T.border + ';animation:scaleIn 0.3s cubic-bezier(0.34,1.56,0.64,1)">' +
+        '<button type="button" id="theme-close" aria-label="Fechar" style="position:absolute;top:0.875rem;right:0.875rem;background:' + T.parchment + ';border:none;border-radius:50%;width:2.25rem;height:2.25rem;cursor:pointer;display:flex;align-items:center;justify-content:center;color:' + T.muted + ';touch-action:manipulation">' + icon('x', 16) + '</button>' +
+        '<div style="text-align:center;margin-bottom:1.25rem">' +
+          '<div style="font-size:1.875rem;margin-bottom:0.375rem">🎨</div>' +
+          '<h3 style="font-family:var(--serif);font-size:1.25rem;color:' + T.ink + ';font-weight:700;margin:0 0 0.25rem">Escolha seu tema</h3>' +
+          '<p style="font-size:0.8125rem;color:' + T.faint + ';margin:0">Cada tema cria uma sensação diferente</p>' +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:0.625rem">' + cards + '</div>' +
+      '</div></div>';
+    el.classList.remove('hidden');
+    function close() { el.innerHTML = ''; el.classList.add('hidden'); }
+    document.getElementById('theme-close').onclick = close;
+    document.getElementById('theme-overlay').onclick = function(e) { if (e.target.id === 'theme-overlay') close(); };
+    document.querySelectorAll('[data-theme-id]').forEach(function(btn) {
+      btn.onclick = function() {
+        var id = btn.getAttribute('data-theme-id');
+        applyTheme(id);
+        close();
+        showSuccessToast('Tema "' + THEMES[id].label + '" aplicado');
+      };
+    });
+  }
+
+  // ─── CONQUISTAS (ACHIEVEMENTS) ───
+  var ACHIEVEMENTS = [
+    { id: 'firstSeed', emoji: '🌱', name: 'Primeira Semente', desc: 'Primeiro registro feito', total: 1 },
+    { id: 'sevenNights', emoji: '🌙', name: '7 Noites', desc: '7 dias de registros', total: 7 },
+    { id: 'fullCycle', emoji: '✦', name: 'Ciclo Completo', desc: '28 registros realizados', total: 28 },
+    { id: 'oracle', emoji: '🔮', name: 'Oráculo Consultado', desc: 'Primeiro insight lido', total: 1 },
+    { id: 'scribe', emoji: '📖', name: 'Escriba Lunar', desc: '10 entradas no diário', total: 10 },
+    { id: 'fullMoon', emoji: '🌕', name: 'Lua Cheia', desc: 'Registrou durante uma lua cheia', total: 1 },
+    { id: 'faithful', emoji: '💜', name: 'Fiel ao Ciclo', desc: '3 meses de uso', total: 90 },
+    { id: 'stellar', emoji: '⭐', name: 'Guardiã Estelar', desc: '6 meses de uso', total: 180 },
+    { id: 'master', emoji: '🏆', name: 'Mestra Lunar', desc: '1 ano de uso', total: 365 }
+  ];
+
+  function isFullMoonToday() {
+    try {
+      var todayMs = Date.now();
+      return lunarCalendar2026.fullMoons.some(function(m) {
+        var d = parseLocalDate(m.date).getTime();
+        return Math.abs(todayMs - d) < 86400000 * 1.5;
+      });
+    } catch(e) { return false; }
+  }
+
+  function ensureFirstUseDate() {
+    var v = lsGet('firstUseDate');
+    if (!v) { v = new Date().toISOString(); lsSet('firstUseDate', v); }
+    return v;
+  }
+
+  function getAchievementsState() {
+    var firstUse = ensureFirstUseDate();
+    var daysSinceFirst = Math.max(0, Math.floor((Date.now() - new Date(firstUse).getTime()) / 86400000));
+    var entries = getDayEntries(state.journalData).filter(function(p) {
+      var d = p[1]; return d && (d.mood || d.intention || d.reflectionAnswer);
+    });
+    var count = entries.length;
+    var hasOracle = !!(state.journalData && state.journalData.__oracleUsed);
+    var hasFullMoonEntry = !!lsGet('fullMoonEntry');
+
+    var progressMap = {
+      firstSeed: { current: Math.min(1, count), unlocked: count >= 1 },
+      sevenNights: { current: Math.min(7, count), unlocked: count >= 7 },
+      fullCycle: { current: Math.min(28, count), unlocked: count >= 28 },
+      oracle: { current: hasOracle ? 1 : 0, unlocked: hasOracle },
+      scribe: { current: Math.min(10, count), unlocked: count >= 10 },
+      fullMoon: { current: hasFullMoonEntry ? 1 : 0, unlocked: hasFullMoonEntry },
+      faithful: { current: Math.min(90, daysSinceFirst), unlocked: daysSinceFirst >= 90 },
+      stellar: { current: Math.min(180, daysSinceFirst), unlocked: daysSinceFirst >= 180 },
+      master: { current: Math.min(365, daysSinceFirst), unlocked: daysSinceFirst >= 365 }
+    };
+    return ACHIEVEMENTS.map(function(a) {
+      var p = progressMap[a.id] || { current: 0, unlocked: false };
+      return { id: a.id, emoji: a.emoji, name: a.name, desc: a.desc, total: a.total, current: p.current, unlocked: p.unlocked };
+    });
+  }
+
+  function checkNewlyUnlockedAchievements() {
+    var prev = lsGetJSON('unlockedAchievements') || [];
+    var current = getAchievementsState().filter(function(a) { return a.unlocked; }).map(function(a) { return a.id; });
+    var newly = current.filter(function(id) { return prev.indexOf(id) === -1; });
+    if (newly.length > 0) {
+      lsSetJSON('unlockedAchievements', current);
+      // Mostra toast comemorativo do primeiro recém-desbloqueado
+      var first = ACHIEVEMENTS.filter(function(a) { return a.id === newly[0]; })[0];
+      if (first) {
+        setTimeout(function() {
+          showSuccessToast(first.emoji + ' Conquista: ' + first.name);
+        }, 600);
+      }
+    } else if (prev.length === 0 && current.length === 0) {
+      lsSetJSON('unlockedAchievements', current);
+    }
+  }
+
+  function showAchievementsModal() {
+    var el = document.getElementById('achievements-modal');
+    if (!el) return;
+    var list = getAchievementsState();
+    var unlockedCount = list.filter(function(a) { return a.unlocked; }).length;
+    var cards = '';
+    list.forEach(function(a) {
+      var pct = Math.round((a.current / a.total) * 100);
+      cards += '<div style="position:relative;background:' + (a.unlocked ? T.cream : T.parchment) + ';border:1.5px solid ' + (a.unlocked ? T.rose : T.borderLt) + ';border-radius:1rem;padding:0.875rem;display:flex;flex-direction:column;align-items:center;text-align:center;gap:0.375rem;opacity:' + (a.unlocked ? '1' : '0.55') + ';transition:all 0.2s;' + (a.unlocked ? 'box-shadow:0 0 16px ' + T.rose + '30' : '') + '">' +
+        '<div style="font-size:1.875rem;line-height:1;filter:' + (a.unlocked ? 'none' : 'grayscale(1)') + '">' + a.emoji + '</div>' +
+        '<p style="font-weight:700;font-size:0.8125rem;color:' + (a.unlocked ? T.ink : T.muted) + ';margin:0;line-height:1.2">' + a.name + '</p>' +
+        '<p style="font-size:0.65rem;color:' + T.faint + ';margin:0;line-height:1.3;min-height:1.7rem">' + a.desc + '</p>' +
+        '<div style="width:100%;height:0.25rem;background:rgba(255,255,255,0.08);border-radius:9999px;overflow:hidden;margin-top:0.125rem">' +
+          '<div style="height:100%;background:' + (a.unlocked ? T.rose : T.faint) + ';width:' + pct + '%;border-radius:9999px;transition:width 0.5s ease"></div>' +
+        '</div>' +
+        '<p style="font-size:0.6rem;color:' + T.faint + ';margin:0;font-variant-numeric:tabular-nums">' + (a.unlocked ? 'Desbloqueada' : a.current + '/' + a.total) + '</p>' +
+        (a.unlocked ? '' : '<span style="position:absolute;top:0.375rem;right:0.5rem;font-size:0.625rem;opacity:0.5">🔒</span>') +
+      '</div>';
+    });
+    var mobile = isMobile();
+    el.innerHTML = '<div id="achievements-overlay" style="position:fixed;inset:0;z-index:215;display:flex;align-items:' + (mobile ? 'flex-end' : 'center') + ';justify-content:center;padding:' + (mobile ? '0' : '1rem') + ';background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)">' +
+      '<div style="position:relative;width:100%;max-width:30rem;background:' + T.surface + ';border-radius:' + (mobile ? '1.75rem 1.75rem 0 0' : '1.75rem') + ';padding:1.5rem;padding-bottom:calc(1.5rem + env(safe-area-inset-bottom,0px));max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;box-shadow:0 20px 60px rgba(0,0,0,0.55);border:1px solid ' + T.border + ';animation:' + (mobile ? 'slideUp' : 'scaleIn') + ' 0.35s cubic-bezier(0.16,1,0.3,1)">' +
+        '<button type="button" id="achievements-close" aria-label="Fechar" style="position:absolute;top:0.875rem;right:0.875rem;background:' + T.parchment + ';border:none;border-radius:50%;width:2.25rem;height:2.25rem;cursor:pointer;display:flex;align-items:center;justify-content:center;color:' + T.muted + ';touch-action:manipulation;z-index:1">' + icon('x', 16) + '</button>' +
+        (mobile ? '<div style="width:2.5rem;height:0.3rem;background:' + T.border + ';border-radius:9999px;margin:0 auto 1rem"></div>' : '') +
+        '<div style="text-align:center;margin-bottom:1.25rem">' +
+          '<div style="font-size:1.875rem;margin-bottom:0.375rem">🏆</div>' +
+          '<h3 style="font-family:var(--serif);font-size:1.25rem;color:' + T.ink + ';font-weight:700;margin:0 0 0.25rem">Suas Conquistas</h3>' +
+          '<p style="font-size:0.8125rem;color:' + T.faint + ';margin:0">' + unlockedCount + ' de ' + list.length + ' desbloqueadas</p>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr));gap:0.625rem">' + cards + '</div>' +
+      '</div></div>';
+    el.classList.remove('hidden');
+    function close() { el.innerHTML = ''; el.classList.add('hidden'); }
+    document.getElementById('achievements-close').onclick = close;
+    document.getElementById('achievements-overlay').onclick = function(e) { if (e.target.id === 'achievements-overlay') close(); };
+  }
+
   function showDayAdvanceModal() {
     if (state.suggestedDay === null || state.suggestedDay === state.currentDay) return;
     var phase = PHASES[getPhaseByDay(state.suggestedDay)];
@@ -1598,6 +1992,10 @@
       '<div id="onboarding-modal" class="hidden"></div>' +
       '<div id="tutorial-modal" class="hidden"></div>' +
       '<div id="oracle-modal" class="hidden"></div>' +
+      '<div id="confirm-modal" class="hidden"></div>' +
+      '<div id="theme-modal" class="hidden"></div>' +
+      '<div id="achievements-modal" class="hidden"></div>' +
+      '<div id="loading-overlay" class="hidden"></div>' +
       renderHeader() +
       '<main class="app-main">' + noticeHTML + content + '</main>' +
       '<div id="save-toast-wrap"></div>' +
@@ -1647,6 +2045,22 @@
         if (fabPanel) fabPanel.classList.add('hidden');
       });
     });
+
+    // Quick actions no FAB Map: tema + conquistas
+    var actTheme = document.getElementById('fab-action-theme');
+    if (actTheme) actTheme.onclick = function() {
+      if (fabPanel) fabPanel.classList.add('hidden');
+      showThemeModal();
+    };
+    var actAch = document.getElementById('fab-action-achievements');
+    if (actAch) actAch.onclick = function() {
+      if (fabPanel) fabPanel.classList.add('hidden');
+      showAchievementsModal();
+    };
+
+    // Botão tema na barra superior
+    var headerTheme = document.getElementById('header-theme-btn');
+    if (headerTheme) headerTheme.onclick = function() { showThemeModal(); };
 
     // Phase start buttons
     document.querySelectorAll('[data-phase-start]').forEach(function(btn) {
@@ -1847,35 +2261,72 @@
 
       var btnPDF = document.getElementById('btn-export-pdf');
       if (btnPDF) btnPDF.onclick = function() {
-        loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
-          .then(function() { return loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'); })
-          .then(function() {
-            var el = document.getElementById('printable-summary');
-            if (!el) return;
-            return window.html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#170F2E' });
-          }).then(function(canvas) {
-            if (!canvas) return;
-            var pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
-            var pw = pdf.internal.pageSize.getWidth();
-            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pw, (canvas.height * pw) / canvas.width);
-            pdf.save('sintese-lunar.pdf');
-          }).catch(function() { alert('Erro ao gerar PDF.'); });
+        showConfirmModal({
+          iconEmoji: '📄',
+          title: 'Exportar como PDF',
+          desc: 'Gera um documento elegante com sua Mandala de Energia, registros do ciclo atual e insights salvos. Ideal para guardar ou imprimir.',
+          note: '⏱ Pode levar alguns segundos.',
+          ctaText: 'Gerar PDF',
+          cancelText: 'Cancelar',
+          onConfirm: function() {
+            showLoadingOverlay('Gerando sua mandala...');
+            // requestAnimationFrame para liberar a thread antes do trabalho pesado
+            requestAnimationFrame(function() {
+              loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+                .then(function() { return loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'); })
+                .then(function() {
+                  var el = document.getElementById('printable-summary');
+                  if (!el) throw new Error('no-element');
+                  return window.html2canvas(el, { scale: 2, useCORS: true, backgroundColor: T.bg });
+                }).then(function(canvas) {
+                  if (!canvas) throw new Error('no-canvas');
+                  var pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
+                  var pw = pdf.internal.pageSize.getWidth();
+                  pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pw, (canvas.height * pw) / canvas.width);
+                  pdf.save('sintese-lunar.pdf');
+                  hideLoadingOverlay();
+                  showSuccessToast('Mandala exportada com sucesso!');
+                }).catch(function() {
+                  hideLoadingOverlay();
+                  showSuccessToast('Erro ao gerar PDF — tente novamente');
+                });
+            });
+          }
+        });
       };
 
       var btnImage = document.getElementById('btn-export-image');
       if (btnImage) btnImage.onclick = function() {
-        loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
-          .then(function() {
-            var el = document.getElementById('printable-summary');
-            if (!el) return;
-            return window.html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#170F2E' });
-          }).then(function(canvas) {
-            if (!canvas) return;
-            var a = document.createElement('a');
-            a.download = 'mandala-lunar-dia-' + state.currentDay + '.png';
-            a.href = canvas.toDataURL();
-            a.click();
-          }).catch(function() { alert('Erro ao gerar imagem.'); });
+        showConfirmModal({
+          iconEmoji: '🖼',
+          title: 'Salvar como Imagem',
+          desc: 'Captura sua Mandala de Energia como imagem PNG para compartilhar ou guardar no celular.',
+          note: '⏱ Pode levar alguns segundos.',
+          ctaText: 'Salvar Imagem',
+          cancelText: 'Cancelar',
+          onConfirm: function() {
+            showLoadingOverlay('Gerando sua mandala...');
+            requestAnimationFrame(function() {
+              loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+                .then(function() {
+                  var el = document.getElementById('printable-summary');
+                  if (!el) throw new Error('no-element');
+                  return window.html2canvas(el, { scale: 2, useCORS: true, backgroundColor: T.bg });
+                }).then(function(canvas) {
+                  if (!canvas) throw new Error('no-canvas');
+                  var a = document.createElement('a');
+                  a.download = 'mandala-lunar-dia-' + state.currentDay + '.png';
+                  a.href = canvas.toDataURL();
+                  a.click();
+                  hideLoadingOverlay();
+                  showSuccessToast('Mandala exportada com sucesso!');
+                }).catch(function() {
+                  hideLoadingOverlay();
+                  showSuccessToast('Erro ao gerar imagem — tente novamente');
+                });
+            });
+          }
+        });
       };
     }
 
@@ -1900,11 +2351,15 @@
       var savedMode = lsGet('dailyMode');
       var savedView = lsGet('view');
       var savedWeek = lsGet('selectedWeek');
+      var savedTheme = lsGet('theme');
       if (saved) state.journalData = saved;
       if (savedDay) { var p = parseInt(savedDay, 10); if (!isNaN(p)) state.currentDay = p; }
       if (savedMode) state.dailyMode = savedMode;
       if (savedView && ['intro','guide','daily','weekly','summary'].indexOf(savedView) !== -1) state.view = savedView;
       if (savedWeek) { var w = parseInt(savedWeek, 10); if (!isNaN(w) && w >= 1 && w <= 4) state.selectedWeek = w; }
+      // Aplica tema salvo (sem rerender — render() ocorre logo abaixo)
+      applyTheme(savedTheme && THEMES[savedTheme] ? savedTheme : 'noite-lunar', { rerender: false });
+      ensureFirstUseDate();
     } catch(e) {
       console.warn('Dados corrompidos — resetando.', e);
       lsRemove('journalData');

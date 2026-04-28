@@ -289,19 +289,27 @@ select {
   .hero-section .hero-pad { padding: 1.25rem !important; }
 }
 
-/* ─── HERO TITLE ─── */
+/* ─── HERO TITLE (responsivo via clamp) ─── */
 .hero-title {
-  font-family: var(--serif); font-size: 2.25rem; font-weight: 700;
-  color: var(--ink); margin: 0 0 0.25rem;
+  font-family: var(--serif);
+  font-size: clamp(1.5rem, 5vw, 2.25rem);
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 0.25rem;
+  line-height: 1.2;
+  word-break: break-word;
 }
-@media (max-width: 400px) { .hero-title { font-size: 1.75rem; } }
 
-/* ─── SUMMARY TITLE ─── */
+/* ─── SUMMARY TITLE (responsivo via clamp) ─── */
 .summary-title {
-  font-family: var(--serif); font-size: 3rem; color: var(--ink);
-  font-weight: 700; margin: 0 0 0.5rem;
+  font-family: var(--serif);
+  font-size: clamp(1.75rem, 6vw, 3rem);
+  color: var(--ink);
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  line-height: 1.2;
+  word-break: break-word;
 }
-@media (max-width: 480px) { .summary-title { font-size: 2rem; } }
 
 /* ─── ORACLE MODAL ─── */
 .oracle-modal-card {
@@ -440,10 +448,15 @@ input[type="date"].dl-input::-webkit-calendar-picker-indicator {
   border-bottom: 1px solid var(--border-lt); padding-bottom: 0.75rem;
 }
 
-/* ─── TAG ─── */
+/* ─── TAG (pill) ─── */
 .tag {
-  padding: 0.25rem 0.625rem; border-radius: 9999px;
-  font-size: 0.7rem; font-weight: 600; display: inline-block; line-height: 1.4;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+  line-height: 1.4;
+  border: 1px solid rgba(192,132,252,0.4);
 }
 
 /* ─── HIDDEN UTILITY ─── */
