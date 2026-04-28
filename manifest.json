@@ -1,0 +1,21 @@
+{
+  "name": "Diário Lunar",
+  "short_name": "Diário Lunar",
+  "description": "Sincronize com seu ciclo. Diário feminino de autoconhecimento e conexão lunar.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#170F2E",
+  "background_color": "#170F2E",
+  "categories": ["lifestyle", "health"],
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🌙</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

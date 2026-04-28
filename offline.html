@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diário Lunar — Offline</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#170F2E;color:#FAF5FF;font-family:'Lato',system-ui,sans-serif;text-align:center;padding:2rem}
+    .wrap{max-width:22rem}
+    .moon{font-size:4rem;margin-bottom:1.5rem;animation:pulse 2s infinite}
+    h1{font-family:'Playfair Display',Georgia,serif;font-size:1.75rem;margin-bottom:.75rem}
+    p{color:#C084FC;font-size:.9rem;line-height:1.6;margin-bottom:1.5rem}
+    button{background:#7C3AED;color:#FAF5FF;border:none;padding:.75rem 2rem;border-radius:9999px;font-weight:700;font-size:.9rem;cursor:pointer}
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="moon">🌙</div>
+    <h1>Você está offline</h1>
+    <p>Seus dados estão seguros localmente. Reconecte-se à internet para sincronizar.</p>
+    <button onclick="location.reload()">Tentar novamente</button>
+  </div>
+</body>
+</html>
