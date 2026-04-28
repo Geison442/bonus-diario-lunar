@@ -408,7 +408,7 @@
     getDayEntries(state.journalData).forEach(function(p) { var d = p[1]; if (d && d.mood) moodCounts[d.mood] = (moodCounts[d.mood] || 0) + 1; });
     var topMood = Object.entries(moodCounts).sort(function(a,b) { return b[1]-a[1]; })[0];
     var topEmoji = topMood ? (topMood[0].split(' ')[0]) : '✨';
-    var phaseColors = { 1: '#64748b', 2: '#10b981', 3: '#C5908E', 4: '#d97706' };
+    var phaseColors = { 1: PHASES[1].hex, 2: PHASES[2].hex, 3: PHASES[3].hex, 4: PHASES[4].hex };
 
     var svg = '<svg width="' + actualSize + '" height="' + actualSize + '" style="position:absolute;inset:0">';
     [0.87, 0.7, 0.53].forEach(function(r) {
@@ -447,12 +447,12 @@
     var a = ((state.currentDay - 1) / 28 * 360 - 90) * Math.PI / 180;
     var r2 = actualSize / 2 * 0.88;
     var todayInd = '<div style="position:absolute;left:' + (actualSize/2 + r2 * Math.cos(a) - 8) + 'px;top:' + (actualSize/2 + r2 * Math.sin(a) - 8) + 'px;pointer-events:none">' +
-      '<div style="width:1rem;height:1rem;border-radius:50%;background:' + T.rose + ';border:2px solid white;box-shadow:0 2px 8px ' + T.rose + '60;animation:pulse 2s infinite"></div></div>';
+      '<div style="width:1rem;height:1rem;border-radius:50%;background:' + T.rose + ';border:2px solid ' + T.ink + ';box-shadow:0 2px 8px ' + T.rose + '60;animation:pulse 2s infinite"></div></div>';
 
     var hint = pct < 0.14 ? '<p style="font-size:0.75rem;color:' + T.faint + ';font-style:italic;text-align:center;max-width:18rem;margin:0.5rem auto 0">🌱 Sua mandala está nascendo. Cada dia registrado a torna mais rica e expressiva.</p>' : '';
 
     var legend = '<div style="display:flex;gap:0.75rem;flex-wrap:wrap;justify-content:center;margin-top:0.75rem">';
-    [{ c: '#64748b', l: 'Renovação' }, { c: '#10b981', l: 'Crescimento' }, { c: '#C5908E', l: 'Força' }, { c: '#d97706', l: 'Sabedoria' }].forEach(function(item) {
+    [{ c: PHASES[1].hex, l: 'Renovação' }, { c: PHASES[2].hex, l: 'Crescimento' }, { c: PHASES[3].hex, l: 'Força' }, { c: PHASES[4].hex, l: 'Sabedoria' }].forEach(function(item) {
       legend += '<span style="display:flex;align-items:center;gap:0.375rem;font-size:0.75rem;color:' + T.muted + '"><span style="width:0.5rem;height:0.5rem;border-radius:50%;background:' + item.c + '"></span>' + item.l + '</span>';
     });
     legend += '</div>';
@@ -475,6 +475,39 @@
     if (age < 22.15) return { emoji: '🌖', name: 'Gibosa Minguante' };
     if (age < 23.99) return { emoji: '🌗', name: 'Quarto Minguante' };
     return { emoji: '🌘', name: 'Lua Minguante' };
+  }
+
+  // ─── DEBOUNCE (preserva foco em inputs/textareas) ───
+  function makeDebouncer(fn, delay) {
+    var t = null;
+    return function() {
+      var args = arguments;
+      var ctx = this;
+      clearTimeout(t);
+      t = setTimeout(function() { fn.apply(ctx, args); }, delay);
+    };
+  }
+
+  // ─── SAVE FEEDBACK INDICATOR (sem perder foco) ───
+  function showFieldSaveFeedback(field) {
+    if (!field || !field.parentElement) return;
+    var parent = field.parentElement;
+    if (getComputedStyle(parent).position === 'static') {
+      parent.style.position = 'relative';
+    }
+    var existing = parent.querySelector('.field-save-check');
+    if (existing) existing.remove();
+    var check = document.createElement('span');
+    check.className = 'field-save-check';
+    check.setAttribute('aria-hidden', 'true');
+    check.textContent = '✓';
+    check.style.cssText = 'position:absolute;right:0.625rem;bottom:0.5rem;color:#10B981;font-size:0.875rem;font-weight:700;opacity:0;transition:opacity 0.25s ease;pointer-events:none;text-shadow:0 0 8px rgba(16,185,129,0.4)';
+    parent.appendChild(check);
+    requestAnimationFrame(function() { check.style.opacity = '1'; });
+    setTimeout(function() {
+      check.style.opacity = '0';
+      setTimeout(function() { if (check.parentElement) check.remove(); }, 280);
+    }, 1500);
   }
 
   // ─── SAUDAÇÃO DINÂMICA ───
@@ -675,7 +708,7 @@
         '<div id="fab-content-assistant" style="padding:1rem">' + renderFABAssistant() + '</div>' +
         '<div id="fab-content-map" class="hidden" style="padding:1rem">' + renderFABMap() + '</div>' +
       '</div>' +
-      '<button type="button" id="fab-toggle" style="width:3.5rem;height:3.5rem;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;background:' + T.rose + ';box-shadow:0 8px 24px ' + T.rose + '50;transition:all 0.3s;touch-action:manipulation">' + icon('sparkles', 22, T.white) + '</button>' +
+      '<button type="button" id="fab-toggle" style="width:3.5rem;height:3.5rem;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;background:' + T.rose + ';box-shadow:0 8px 24px ' + T.rose + '50;transition:all 0.3s;touch-action:manipulation">' + icon('sparkles', 22, T.ink) + '</button>' +
     '</div>';
   }
 
@@ -730,7 +763,7 @@
     var el = document.getElementById('save-toast-wrap');
     if (!el) return;
     if (state.showSaveMsg) {
-      el.innerHTML = '<div class="save-toast"><div style="background:' + T.ink + ';color:' + T.white + ';padding:0.625rem 1.25rem;border-radius:1.25rem;box-shadow:0 8px 24px rgba(0,0,0,0.2);display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;font-weight:600;animation:fadeIn 0.3s ease;white-space:nowrap">' + icon('checkCircle2', 16, '#22c55e') + ' Salvo</div></div>';
+      el.innerHTML = '<div class="save-toast"><div style="background:' + T.surface + ';color:' + T.ink + ';padding:0.625rem 1.25rem;border-radius:1.25rem;box-shadow:0 8px 24px rgba(0,0,0,0.45);display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;font-weight:600;animation:fadeIn 0.3s ease;white-space:nowrap;border:1px solid ' + T.border + '">' + icon('checkCircle2', 16, '#22c55e') + ' Salvo</div></div>';
     } else {
       el.innerHTML = '';
     }
@@ -753,7 +786,7 @@
       '<div class="hero-pad" style="padding:1.75rem">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;gap:0.75rem">' +
           '<div style="flex:1;min-width:0">' +
-            '<div style="display:inline-flex;align-items:center;gap:0.375rem;background:' + T.rose + ';color:' + T.white + ';font-size:0.65rem;font-weight:800;padding:0.25rem 0.75rem;border-radius:9999px;margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.07em">' +
+            '<div style="display:inline-flex;align-items:center;gap:0.375rem;background:' + T.rose + ';color:' + T.ink + ';font-size:0.65rem;font-weight:800;padding:0.25rem 0.75rem;border-radius:9999px;margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.07em">' +
               '<span style="width:0.375rem;height:0.375rem;border-radius:50%;background:rgba(255,255,255,0.8);animation:pulse 2s infinite;display:inline-block"></span> Você está aqui' +
             '</div>' +
             '<h2 class="hero-title">Fase de ' + phase.name + '</h2>' +
@@ -793,8 +826,8 @@
       var p = PHASES[id];
       var isCurrent = id === phaseId;
       html += '<button type="button" data-phase-start="' + id + '" style="position:relative;padding:0.875rem;border-radius:1.25rem;border:2px solid ' + (isCurrent ? p.border : T.border) + ';background:' + (isCurrent ? p.bg : T.white) + ';cursor:pointer;text-align:left;transition:all 0.2s;box-shadow:' + (isCurrent ? '0 4px 16px rgba(0,0,0,0.07)' : 'none') + ';transform:' + (isCurrent ? 'scale(1.04)' : 'scale(1)') + ';font-family:var(--sans);touch-action:manipulation">';
-      if (isCurrent) html += '<span style="position:absolute;top:-0.5rem;right:-0.375rem;background:' + T.rose + ';color:' + T.white + ';font-size:0.5rem;font-weight:800;padding:0.15rem 0.4rem;border-radius:9999px;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap">ATUAL</span>';
-      html += icon(p.icon, 16, isCurrent ? p.hex : '#ccc', 'margin-bottom:0.375rem;display:block') +
+      if (isCurrent) html += '<span style="position:absolute;top:-0.5rem;right:-0.375rem;background:' + T.rose + ';color:' + T.ink + ';font-size:0.5rem;font-weight:800;padding:0.15rem 0.4rem;border-radius:9999px;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap">ATUAL</span>';
+      html += icon(p.icon, 16, isCurrent ? p.hex : 'rgba(250,245,255,0.45)', 'margin-bottom:0.375rem;display:block') +
         '<p class="phase-btn-label" style="color:' + (isCurrent ? p.hex : T.muted) + '">' + p.name + '</p>' +
         '<p style="font-size:0.6rem;color:' + T.faint + ';margin:0">' + p.days + '</p></button>';
     });
@@ -826,7 +859,7 @@
       ].forEach(function(item) {
         html += '<div style="background:' + T.cream + ';padding:0.75rem;border-radius:0.875rem">' +
           '<p style="font-size:0.6rem;color:' + T.faint + ';text-transform:uppercase;letter-spacing:0.08em;margin:0 0 0.25rem">' + item.l + '</p>' +
-          '<p style="font-weight:700;color:' + T.ink + ';font-size:0.8125rem;margin:0 0 0.125rem">' + (item.v ? esc(item.v) : '<span style="color:#ddd;font-weight:400;font-style:italic;font-size:0.7rem">sem dados</span>') + '</p>' +
+          '<p style="font-weight:700;color:' + T.ink + ';font-size:0.8125rem;margin:0 0 0.125rem">' + (item.v ? esc(item.v) : '<span style="color:rgba(250,245,255,0.4);font-weight:400;font-style:italic;font-size:0.7rem">sem dados</span>') + '</p>' +
           (item.s && item.v ? '<p style="font-size:0.65rem;color:' + T.faint + ';margin:0">' + item.s + '</p>' : '') + '</div>';
       });
       html += '</div>';
@@ -922,7 +955,7 @@
       '<div style="height:4px;background:linear-gradient(90deg,' + phase.grad1 + ',' + phase.hex + ')"></div>' +
       '<div style="padding:1.125rem">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.875rem">' +
-          '<button type="button" id="btn-prev-day"' + (state.currentDay === 1 ? ' disabled' : '') + ' style="width:2.75rem;height:2.75rem;border-radius:50%;border:none;background:' + T.parchment + ';cursor:pointer;display:flex;align-items:center;justify-content:center;color:' + (state.currentDay === 1 ? '#ddd' : T.rose) + ';opacity:' + (state.currentDay === 1 ? '0.35' : '1') + ';touch-action:manipulation;flex-shrink:0" aria-label="Dia anterior">' + icon('chevronLeft', 20) + '</button>' +
+          '<button type="button" id="btn-prev-day"' + (state.currentDay === 1 ? ' disabled' : '') + ' style="width:2.75rem;height:2.75rem;border-radius:50%;border:none;background:' + T.parchment + ';cursor:pointer;display:flex;align-items:center;justify-content:center;color:' + (state.currentDay === 1 ? 'rgba(250,245,255,0.3)' : T.rose) + ';opacity:' + (state.currentDay === 1 ? '0.35' : '1') + ';touch-action:manipulation;flex-shrink:0" aria-label="Dia anterior">' + icon('chevronLeft', 20) + '</button>' +
           '<div style="text-align:center;flex:1" data-nav="guide">' +
             '<div style="display:flex;align-items:center;justify-content:center;gap:0.625rem">' +
               '<span style="font-family:var(--serif);font-size:clamp(2.5rem,8vw,3.25rem);font-weight:700;color:' + phase.hex + ';line-height:1">' + state.currentDay + '</span>' +
@@ -937,15 +970,17 @@
     html += '<div class="day-timeline">';
     for (var i = 1; i <= 28; i++) {
       var ph = getPhaseByDay(i);
-      var colors = { 1: '#94a3b8', 2: '#10b981', 3: '#C5908E', 4: '#d97706' };
+      var phaseColor = PHASES[ph].hex;
       var hasE = !!((state.journalData[i] || {}).mood || (state.journalData[i] || {}).intention);
       var isToday = i === state.currentDay;
-      html += '<div class="timeline-dot" data-day="' + i + '" style="height:0.625rem;border-radius:9999px;cursor:pointer;transition:all 0.15s;background:' + colors[ph] + ';width:' + (isToday ? '1rem' : hasE ? '0.5rem' : '0.375rem') + ';opacity:' + (isToday ? '1' : hasE ? '0.8' : '0.25') + ';outline:' + (isToday ? '2px solid ' + T.rose : 'none') + ';outline-offset:1px;flex-shrink:0;touch-action:manipulation"></div>';
+      var dotBg = isToday ? T.rose : (hasE ? phaseColor : 'rgba(255,255,255,0.2)');
+      var dotShadow = isToday ? '0 0 0 3px rgba(124,58,237,0.35), 0 0 12px rgba(124,58,237,0.55)' : 'none';
+      html += '<button type="button" class="timeline-dot" data-day="' + i + '" aria-label="Dia ' + i + '" title="Dia ' + i + '" style="width:10px;height:10px;border-radius:50%;cursor:pointer;transition:all 0.2s ease;background:' + dotBg + ';box-shadow:' + dotShadow + ';flex-shrink:0;touch-action:manipulation;border:none;padding:0"></button>';
     }
     html += '</div>' +
-      '<p style="font-size:0.6rem;color:#ccc;margin:0.375rem 0 0;font-style:italic">← deslize para mudar o dia →</p>' +
+      '<p style="font-size:0.6rem;color:' + T.faint + ';margin:0.375rem 0 0;font-style:italic">← deslize para mudar o dia →</p>' +
     '</div>' +
-    '<button type="button" id="btn-next-day"' + (state.currentDay === 28 ? ' disabled' : '') + ' style="width:2.75rem;height:2.75rem;border-radius:50%;border:none;background:' + T.parchment + ';cursor:pointer;display:flex;align-items:center;justify-content:center;color:' + (state.currentDay === 28 ? '#ddd' : T.rose) + ';opacity:' + (state.currentDay === 28 ? '0.35' : '1') + ';touch-action:manipulation;flex-shrink:0" aria-label="Próximo dia">' + icon('chevronRight', 20) + '</button></div>';
+    '<button type="button" id="btn-next-day"' + (state.currentDay === 28 ? ' disabled' : '') + ' style="width:2.75rem;height:2.75rem;border-radius:50%;border:none;background:' + T.parchment + ';cursor:pointer;display:flex;align-items:center;justify-content:center;color:' + (state.currentDay === 28 ? 'rgba(250,245,255,0.3)' : T.rose) + ';opacity:' + (state.currentDay === 28 ? '0.35' : '1') + ';touch-action:manipulation;flex-shrink:0" aria-label="Próximo dia">' + icon('chevronRight', 20) + '</button></div>';
 
     // Mode toggle
     html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">' +
@@ -961,7 +996,7 @@
       '<div class="mood-grid">';
     MOODS.forEach(function(mood) {
       var selected = dd.mood === mood;
-      html += '<button type="button" data-mood="' + esc(mood) + '" style="padding:0.5rem 0.875rem;border-radius:0.875rem;border:2px solid ' + (selected ? phase.hex : T.border) + ';background:' + (selected ? phase.hex : T.white) + ';color:' + (selected ? T.white : T.ink) + ';font-weight:600;font-size:0.8125rem;cursor:pointer;transition:all 0.15s;transform:' + (selected ? 'scale(1.05)' : 'scale(1)') + ';font-family:var(--sans);touch-action:manipulation;min-height:40px">' + mood + '</button>';
+      html += '<button type="button" data-mood="' + esc(mood) + '" style="padding:0.5rem 0.875rem;border-radius:0.875rem;border:2px solid ' + (selected ? phase.hex : T.border) + ';background:' + (selected ? phase.hex : T.white) + ';color:' + T.ink + ';font-weight:600;font-size:0.8125rem;cursor:pointer;transition:all 0.15s;transform:' + (selected ? 'scale(1.05)' : 'scale(1)') + ';font-family:var(--sans);touch-action:manipulation;min-height:40px">' + mood + '</button>';
     });
     html += '</div></div>';
 
@@ -972,7 +1007,7 @@
         '<label style="font-size:0.8125rem;font-weight:700;color:' + T.ink + '">' + s.label + '</label>' +
         '<span style="font-size:1.25rem;font-weight:700;color:' + phase.hex + ';font-family:var(--serif)">' + (dd[s.key] || 5) + '</span></div>' +
         '<input type="range" min="1" max="10" value="' + (dd[s.key] || 5) + '" data-slider="' + s.key + '" style="width:100%;height:0.625rem;border-radius:9999px;cursor:pointer;accent-color:' + phase.hex + '">' +
-        '<div style="display:flex;justify-content:space-between;font-size:0.65rem;color:#ccc;margin-top:0.25rem"><span>Baixa</span><span>Alta</span></div></div>';
+        '<div style="display:flex;justify-content:space-between;font-size:0.65rem;color:rgba(250,245,255,0.55);margin-top:0.25rem"><span>Baixa</span><span>Alta</span></div></div>';
     });
     html += '</div>';
 
@@ -1071,7 +1106,7 @@
     ].forEach(function(item) {
       html += '<div style="background:' + p.bg + ';padding:1rem;border-radius:1.25rem;border:1px solid ' + p.border + '">' +
         '<label style="display:block;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:' + p.hex + ';margin:0 0 0.625rem">' + item.label + '</label>' +
-        '<input type="text" class="dl-input" data-weekly="' + item.key + '" placeholder="' + esc(item.ph) + '" value="' + esc(wData[item.key] || '') + '" style="background:' + T.white + '"></div>';
+        '<input type="text" class="dl-input" data-weekly="' + item.key + '" placeholder="' + esc(item.ph) + '" value="' + esc(wData[item.key] || '') + '"></div>';
     });
     html += '</div></section>';
 
@@ -1083,15 +1118,15 @@
     ].forEach(function(item) {
       html += '<div style="background:' + p.bg + ';border:1px solid ' + p.border + ';padding:1.125rem;border-radius:1.25rem">' +
         '<h4 style="font-size:0.875rem;font-weight:700;color:' + p.hex + ';margin:0 0 0.75rem">' + item.label + '</h4>' +
-        '<textarea class="dl-textarea" data-weekly="' + item.key + '" placeholder="' + esc(item.ph) + '" style="height:6rem;background:rgba(255,255,255,0.6)">' + esc(wData[item.key] || '') + '</textarea></div>';
+        '<textarea class="dl-textarea" data-weekly="' + item.key + '" placeholder="' + esc(item.ph) + '" style="height:6rem">' + esc(wData[item.key] || '') + '</textarea></div>';
     });
     html += '</div></section>';
 
     // Section 4
     html += '<section style="margin-bottom:1.75rem"><h3 class="section-header">' + icon('penTool', 17, p.hex) + ' 4. Espaço Criativo</h3>' +
       '<div style="border:3px dashed ' + T.border + ';border-radius:1.5rem;padding:1.5rem;text-align:center;background:' + T.cream + '60">' +
-        icon('layout', 28, '#ddd', 'margin:0 auto 0.625rem;display:block') +
-        '<p style="font-size:0.8125rem;color:#ccc;margin:0 0 0.875rem">Espaço livre: palavras, rituais, visualizações...</p>' +
+        icon('layout', 28, 'rgba(250,245,255,0.4)', 'margin:0 auto 0.625rem;display:block') +
+        '<p style="font-size:0.8125rem;color:rgba(250,245,255,0.55);margin:0 0 0.875rem">Espaço livre: palavras, rituais, visualizações...</p>' +
         '<textarea class="dl-textarea" data-weekly="creativeSpace" style="height:9rem;text-align:center;font-family:var(--serif);font-size:1rem;background:transparent;border:none;resize:none" placeholder="Escreva, liste, imagine...">' + esc(wData.creativeSpace || '') + '</textarea></div></section>';
 
     // Section 5
@@ -1204,7 +1239,7 @@
       '<div class="grid-lunar">';
 
     // Lunar calendar
-    html += '<div style="background:linear-gradient(145deg,#1C0B3D,#26184A);border-radius:1.25rem;padding:1.25rem;color:' + T.white + '">' +
+    html += '<div style="background:linear-gradient(145deg,#1C0B3D,#26184A);border-radius:1.25rem;padding:1.25rem;color:' + T.ink + '">' +
       '<h4 style="font-family:var(--serif);font-size:1.0625rem;font-weight:700;text-align:center;margin-bottom:1.125rem;display:flex;align-items:center;justify-content:center;gap:0.5rem">' + icon('moon', 18) + ' Ciclos Lunares 2026</h4>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.875rem">';
     [
@@ -1234,18 +1269,18 @@
       var energy = de.physicalLevel || 0;
       var hasEntry = de.mood || de.intention || de.reflectionAnswer;
       var isToday = day === state.currentDay;
-      var bgMap = { 1: '#f8fafc', 2: '#ecfdf5', 3: '#fff1f2', 4: '#fffbeb' };
+      var bgMap = { 1: PHASES[1].bg, 2: PHASES[2].bg, 3: PHASES[3].bg, 4: PHASES[4].bg };
       html += '<button type="button" data-mosaic-day="' + day + '" style="aspect-ratio:1;border-radius:0.625rem;background:' + bgMap[ph] + ';display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid ' + (isToday ? T.rose : hasEntry ? T.border : 'transparent') + ';cursor:pointer;transition:all 0.15s;transform:' + (isToday ? 'scale(1.08)' : 'scale(1)') + ';box-shadow:' + (isToday ? '0 4px 12px ' + T.rose + '30' : 'none') + ';position:relative;font-family:var(--sans);touch-action:manipulation">';
-      if (isToday) html += '<span style="position:absolute;top:-0.375rem;right:-0.375rem;width:0.5rem;height:0.5rem;background:' + T.rose + ';border:2px solid white;border-radius:50%"></span>';
-      html += '<span style="font-size:0.5rem;font-weight:700;position:absolute;top:0.15rem;left:0.25rem;color:' + (isToday ? T.rose : hasEntry ? T.muted : '#ddd') + '">' + day + '</span>';
+      if (isToday) html += '<span style="position:absolute;top:-0.375rem;right:-0.375rem;width:0.5rem;height:0.5rem;background:' + T.rose + ';border:2px solid ' + T.surface + ';border-radius:50%"></span>';
+      html += '<span style="font-size:0.5rem;font-weight:700;position:absolute;top:0.15rem;left:0.25rem;color:' + (isToday ? T.rose : hasEntry ? T.muted : 'rgba(250,245,255,0.35)') + '">' + day + '</span>';
       if (mood) html += '<span style="font-size:0.875rem">' + mood.split(' ')[0] + '</span>';
-      else html += '<span style="width:0.3rem;height:0.3rem;border-radius:50%;background:#ddd"></span>';
+      else html += '<span style="width:0.3rem;height:0.3rem;border-radius:50%;background:rgba(255,255,255,0.2)"></span>';
       if (parseInt(energy) > 0) html += '<div style="position:absolute;bottom:0.2rem;width:60%;height:0.2rem;background:rgba(255,255,255,0.7);border-radius:9999px;overflow:hidden"><div style="height:100%;background:' + T.rose + '90;border-radius:9999px;width:' + ((parseInt(energy)/10)*100) + '%"></div></div>';
       html += '</button>';
     });
     html += '</div>';
     html += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;margin-top:0.875rem">';
-    [{ bg: '#f8fafc', l: 'Renovação' }, { bg: '#ecfdf5', l: 'Crescimento' }, { bg: '#fff1f2', l: 'Força' }, { bg: '#fffbeb', l: 'Sabedoria' }].forEach(function(item) {
+    [{ bg: PHASES[1].bg, l: 'Renovação' }, { bg: PHASES[2].bg, l: 'Crescimento' }, { bg: PHASES[3].bg, l: 'Força' }, { bg: PHASES[4].bg, l: 'Sabedoria' }].forEach(function(item) {
       html += '<span style="display:flex;align-items:center;gap:0.375rem;font-size:0.7rem;color:' + T.muted + '"><span style="width:0.75rem;height:0.75rem;border-radius:0.25rem;background:' + item.bg + ';border:1px solid ' + T.border + '"></span>' + item.l + '</span>';
     });
     html += '</div></div></div></div>';
@@ -1262,7 +1297,7 @@
     var el = document.getElementById('oracle-modal');
     if (!el) return;
     var mobile = isMobile();
-    el.innerHTML = '<div style="position:fixed;inset:0;z-index:200;display:flex;align-items:' + (mobile ? 'flex-end' : 'center') + ';justify-content:center;padding:' + (mobile ? '0' : '1rem') + ';background:rgba(0,0,0,0.52);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)">' +
+    el.innerHTML = '<div id="oracle-overlay" style="position:fixed;inset:0;z-index:200;display:flex;align-items:' + (mobile ? 'flex-end' : 'center') + ';justify-content:center;padding:' + (mobile ? '0' : '1rem') + ';background:rgba(0,0,0,0.52);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)">' +
       '<div class="oracle-modal-card">' +
         '<div style="height:4px;background:linear-gradient(90deg,' + T.rose + ',' + T.purple + ',' + T.gold + ')"></div>' +
         '<div style="padding:' + (mobile ? '1.5rem 1.25rem' : '2rem') + '">' +
@@ -1288,6 +1323,8 @@
     el.classList.remove('hidden');
     document.getElementById('btn-close-oracle').onclick = closeOracleModal;
     document.getElementById('btn-close-oracle-2').onclick = closeOracleModal;
+    var overlay = document.getElementById('oracle-overlay');
+    if (overlay) overlay.onclick = function(e) { if (e.target === overlay) closeOracleModal(); };
   }
 
   function closeOracleModal() {
@@ -1395,7 +1432,19 @@
       }
       if (onbStep === 2) {
         var intentArea = document.getElementById('onb-intent');
-        if (intentArea) intentArea.oninput = function(e) { onbIntent = e.target.value; renderOnb(); };
+        var nextBtn = document.getElementById('onb-next');
+        if (intentArea) {
+          // NÃO re-renderiza a cada tecla — apenas atualiza o estado e o botão Próximo
+          intentArea.oninput = function(e) {
+            onbIntent = e.target.value;
+            if (nextBtn) {
+              if (onbIntent) nextBtn.removeAttribute('disabled');
+              else nextBtn.setAttribute('disabled', 'disabled');
+            }
+          };
+          // Foca automaticamente para conveniência
+          setTimeout(function() { intentArea.focus(); }, 50);
+        }
       }
     }
 
@@ -1461,10 +1510,10 @@
               '<p style="font-size:0.75rem;color:' + T.faint + ';margin:0">Dia 15 · Fase Força</p></div></div>' +
           '<div style="display:flex;gap:0.375rem;flex-wrap:wrap">' +
             ['😌 Calma', '⚡ Energética', '😍 Amorosa'].map(function(m) {
-              return '<span style="padding:0.25rem 0.625rem;background:' + T.rose + ';color:' + T.white + ';border-radius:9999px;font-size:0.7rem;font-weight:700">' + m + '</span>';
+              return '<span style="padding:0.25rem 0.625rem;background:' + T.rose + ';color:' + T.ink + ';border-radius:9999px;font-size:0.7rem;font-weight:700">' + m + '</span>';
             }).join('') + '</div></div>';
       } else if (tutStep === 2) {
-        bodyContent = '<div style="margin:1rem 0;background:linear-gradient(135deg,#1C0B3D,#26184A);border-radius:1rem;padding:1.25rem;text-align:center;color:' + T.white + '">' +
+        bodyContent = '<div style="margin:1rem 0;background:linear-gradient(135deg,#1C0B3D,#26184A);border-radius:1rem;padding:1.25rem;text-align:center;color:' + T.ink + '">' +
           icon('sparkles', 22, '', 'margin:0 auto 0.5rem;opacity:0.8') +
           '<p style="font-family:var(--serif);font-style:italic;font-size:0.875rem;line-height:1.6;opacity:0.9;margin:0">"Sua sensibilidade é sua bússola mais precisa neste momento."</p>' +
           '<p style="font-size:0.65rem;opacity:0.4;margin-top:0.5rem;margin-bottom:0">— Insight gerado pela IA</p></div>';
@@ -1476,7 +1525,7 @@
         for (var i = 0; i < 28; i++) {
           var a = (i / 28 * 360 - 90) * Math.PI / 180;
           var len = 8 + Math.random() * 14;
-          var c = i < 7 ? '#64748b' : i < 14 ? '#10b981' : i < 21 ? '#C5908E' : '#d97706';
+          var c = i < 7 ? PHASES[1].hex : i < 14 ? PHASES[2].hex : i < 21 ? PHASES[3].hex : PHASES[4].hex;
           bodyContent += '<line x1="' + (50+11*Math.cos(a)) + '" y1="' + (50+11*Math.sin(a)) + '" x2="' + (50+(11+len)*Math.cos(a)) + '" y2="' + (50+(11+len)*Math.sin(a)) + '" stroke="' + c + '" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>';
         }
         bodyContent += '<circle cx="50" cy="50" r="11" fill="' + T.white + '" stroke="' + T.border + '" stroke-width="2"/><text x="50" y="54" text-anchor="middle" font-size="10" fill="' + T.rose + '">✨</text></svg></div>';
@@ -1640,27 +1689,40 @@
         };
       });
 
-      // Sliders
+      // Sliders — sliders devem salvar imediatamente (UX espera resposta instantânea no thumb)
       document.querySelectorAll('[data-slider]').forEach(function(input) {
-        input.oninput = function() {
-          var key = input.getAttribute('data-slider');
-          var obj = {}; obj[key] = input.value;
+        var key = input.getAttribute('data-slider');
+        var display = input.parentElement.querySelector('span[style*="font-family:var(--serif)"]');
+        var debouncedSave = makeDebouncer(function(val) {
+          var obj = {}; obj[key] = val;
           saveData(state.currentDay, obj);
-          var display = input.parentElement.querySelector('span[style*="font-family:var(--serif)"]');
+        }, 250);
+        input.oninput = function() {
           if (display) display.textContent = input.value;
+          debouncedSave(input.value);
         };
       });
 
-      // Intention
+      // Intention — debounce 800ms preserva foco
       var inputIntention = document.getElementById('input-intention');
       if (inputIntention) {
-        inputIntention.oninput = function() { saveData(state.currentDay, { intention: inputIntention.value }); };
+        var saveIntention = makeDebouncer(function() {
+          saveData(state.currentDay, { intention: inputIntention.value });
+          showFieldSaveFeedback(inputIntention);
+        }, 800);
+        inputIntention.oninput = saveIntention;
       }
 
       // Deep mode fields
       if (state.dailyMode === 'deep') {
         var textReflection = document.getElementById('textarea-reflection');
-        if (textReflection) textReflection.oninput = function() { saveData(state.currentDay, { reflectionAnswer: textReflection.value }); };
+        if (textReflection) {
+          var saveReflection = makeDebouncer(function() {
+            saveData(state.currentDay, { reflectionAnswer: textReflection.value });
+            showFieldSaveFeedback(textReflection);
+          }, 800);
+          textReflection.oninput = saveReflection;
+        }
 
         var btnExample = document.getElementById('btn-use-example');
         if (btnExample) btnExample.onclick = function() {
@@ -1670,18 +1732,32 @@
         };
 
         document.querySelectorAll('[data-gratitude]').forEach(function(input) {
-          input.oninput = function() {
-            var n = input.getAttribute('data-gratitude');
+          var n = input.getAttribute('data-gratitude');
+          var saveGratitude = makeDebouncer(function() {
             var obj = {}; obj['gratitude' + n] = input.value;
             saveData(state.currentDay, obj);
-          };
+            showFieldSaveFeedback(input);
+          }, 800);
+          input.oninput = saveGratitude;
         });
 
         var textLearning = document.getElementById('textarea-learning');
-        if (textLearning) textLearning.oninput = function() { saveData(state.currentDay, { learning: textLearning.value }); };
+        if (textLearning) {
+          var saveLearning = makeDebouncer(function() {
+            saveData(state.currentDay, { learning: textLearning.value });
+            showFieldSaveFeedback(textLearning);
+          }, 800);
+          textLearning.oninput = saveLearning;
+        }
 
         var inputSelfcare = document.getElementById('input-selfcare');
-        if (inputSelfcare) inputSelfcare.oninput = function() { saveData(state.currentDay, { selfCareTomorrow: inputSelfcare.value }); };
+        if (inputSelfcare) {
+          var saveSelfcare = makeDebouncer(function() {
+            saveData(state.currentDay, { selfCareTomorrow: inputSelfcare.value });
+            showFieldSaveFeedback(inputSelfcare);
+          }, 800);
+          inputSelfcare.oninput = saveSelfcare;
+        }
 
         var btnOracle = document.getElementById('btn-daily-oracle');
         if (btnOracle) btnOracle.onclick = function() {
@@ -1725,12 +1801,14 @@
       });
 
       document.querySelectorAll('[data-weekly]').forEach(function(el) {
-        el.oninput = function() {
-          var key = el.getAttribute('data-weekly');
-          var wk = 'weekly_reflection_' + state.selectedWeek;
+        var key = el.getAttribute('data-weekly');
+        var wk = 'weekly_reflection_' + state.selectedWeek;
+        var saveWeekly = makeDebouncer(function() {
           var obj = {}; obj[key] = el.value;
           saveData(wk, obj);
-        };
+          showFieldSaveFeedback(el);
+        }, 800);
+        el.oninput = saveWeekly;
       });
 
       var btnWeeklyOracle = document.getElementById('btn-weekly-oracle');
@@ -1751,11 +1829,13 @@
     // Summary view events
     if (state.view === 'summary') {
       document.querySelectorAll('[data-synthesis]').forEach(function(el) {
-        el.oninput = function() {
-          var key = el.getAttribute('data-synthesis');
+        var key = el.getAttribute('data-synthesis');
+        var saveSynthesis = makeDebouncer(function() {
           var obj = {}; obj[key] = el.value;
           saveData('monthly_synthesis', obj);
-        };
+          showFieldSaveFeedback(el);
+        }, 800);
+        el.oninput = saveSynthesis;
       });
 
       document.querySelectorAll('[data-mosaic-day]').forEach(function(btn) {

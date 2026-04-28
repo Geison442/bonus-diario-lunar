@@ -194,7 +194,23 @@ select {
 @media (max-width: 600px) { .mandala-wrap { flex-direction: column; gap: 1.25rem; } }
 
 /* ─── DAY TIMELINE ─── */
-.day-timeline { display: flex; gap: 2px; justify-content: center; margin-top: 0.625rem; flex-wrap: nowrap; overflow: hidden; }
+.day-timeline {
+  display: flex; gap: 6px; justify-content: center; align-items: center;
+  margin-top: 0.625rem; flex-wrap: nowrap; overflow: hidden;
+  padding: 0.5rem 0.25rem;
+}
+.timeline-dot {
+  position: relative;
+  outline: none;
+}
+.timeline-dot::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+}
+.timeline-dot:hover { transform: scale(1.4); }
+.timeline-dot:focus-visible { box-shadow: 0 0 0 3px rgba(192,132,252,0.6) !important; }
 
 /* ─── PHASE BTN LABEL ─── */
 .phase-btn-label { font-weight: 700; font-size: 0.8125rem; margin: 0 0 0.125rem; }
@@ -321,24 +337,83 @@ select {
   left: 50%; transform: translateX(-50%); z-index: 300;
 }
 
-/* ─── COMMON INPUT STYLES ─── */
-.dl-input {
-  width: 100%; padding: 0.875rem 1rem; border-radius: 0.875rem;
-  border: 2px solid var(--border); outline: none;
-  font-size: 16px; color: var(--ink); background: var(--cream);
-  transition: border-color 0.15s; font-family: var(--sans);
-  line-height: 1.5; box-sizing: border-box; -webkit-appearance: none;
-}
-.dl-input:focus { border-color: var(--primary); }
-
+/* ─── COMMON INPUT STYLES (premium dark) ─── */
+.dl-input,
 .dl-textarea {
-  width: 100%; padding: 1rem; border-radius: 0.875rem;
-  border: 2px solid var(--border); outline: none;
-  font-size: 16px; color: var(--ink); background: var(--cream);
-  transition: border-color 0.15s; font-family: var(--sans);
-  line-height: 1.6; resize: none; box-sizing: border-box; -webkit-appearance: none;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(192,132,252,0.4);
+  outline: none;
+  font-size: 16px;
+  color: var(--ink);
+  background: rgba(255,255,255,0.08);
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  font-family: var(--sans);
+  line-height: 1.55;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
 }
-.dl-textarea:focus { border-color: var(--primary); }
+.dl-textarea {
+  line-height: 1.65;
+  resize: vertical;
+  min-height: 96px;
+}
+.dl-input::placeholder,
+.dl-textarea::placeholder {
+  color: rgba(250,245,255,0.45);
+  font-style: italic;
+  opacity: 1; /* Firefox normaliza */
+}
+.dl-input:hover,
+.dl-textarea:hover {
+  border-color: rgba(192,132,252,0.55);
+}
+.dl-input:focus,
+.dl-textarea:focus {
+  border-color: var(--primary);
+  background: rgba(255,255,255,0.12);
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.25);
+}
+.dl-input:disabled,
+.dl-textarea:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ─── FIELD LABEL & WRAPPER ─── */
+.field-wrap {
+  display: flex; flex-direction: column; gap: 0.4375rem;
+  position: relative;
+}
+.field-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+  font-family: var(--sans);
+}
+.field-counter {
+  position: absolute;
+  right: 0.625rem;
+  bottom: 0.5rem;
+  font-size: 0.65rem;
+  color: var(--faint);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+  background: rgba(23,15,46,0.7);
+  padding: 0.125rem 0.4375rem;
+  border-radius: 9999px;
+  font-variant-numeric: tabular-nums;
+}
+.field-wrap:focus-within .field-counter { opacity: 1; }
+
+/* ─── DATE INPUT (Webkit calendar icon visível no dark) ─── */
+input[type="date"].dl-input::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2);
+  cursor: pointer;
+}
 
 /* ─── BUTTON VARIANTS ─── */
 .btn {
