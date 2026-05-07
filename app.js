@@ -48,7 +48,8 @@
     save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
     calendar: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
     messageCircle: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
-    eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
+    eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+    search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'
   };
 
   function icon(name, size, color, extra) {
@@ -93,81 +94,147 @@
   }
 
   // ─── ORÁCULO LOCAL (sem API externa) ───
-  // Banco de insights: 4 fases do ciclo × 4 fases lunares = 16 combinações × 2-3 insights = 36+ únicos
+  // Banco principal: 4 fases do ciclo × 4 fases lunares = 16 combinações × 4 insights ≈ 64
+  // Banco de hora do dia: 4 períodos × 4 insights = 16
+  // Total ≥ 80 insights únicos com rotação por hora.
   var INSIGHTS_BANK = {
     // ── Fase 1: RENOVAÇÃO ──
     '1_new': [
       'A lua nova e sua fase de renovação se encontram num momento raro de recomeço. Plante intenções pequenas — elas crescerão mais fortes do que você imagina.',
       'Tudo que você cultiva no silêncio desta fase voltará multiplicado. O descanso de hoje é a fundação da força de amanhã.',
-      'O céu vazio e o útero vazio compartilham a mesma promessa: tudo é possível quando se honra o nada antes do tudo.'
+      'O céu vazio e o útero vazio compartilham a mesma promessa: tudo é possível quando se honra o nada antes do tudo.',
+      'Dois ventres em pausa: o seu e o do céu. Quando ambos descansam, o universo escuta seus pedidos com mais clareza.'
     ],
     '1_waxing': [
       'A lua cresce enquanto seu corpo pede recolhimento. Não force o ritmo dela — sua sabedoria está em respeitar o seu próprio.',
-      'Mesmo na fase de renovação, sementes invisíveis estão germinando. Confie no que você não vê ainda.'
+      'Mesmo na fase de renovação, sementes invisíveis estão germinando. Confie no que você não vê ainda.',
+      'O céu acelera, você desacelera. Essa é uma dança consciente — você não está atrasada, está em outra estação.',
+      'Enquanto o mundo lá fora se anima, seu corpo escolhe descanso sagrado. Permita-se essa contramão.'
     ],
     '1_full': [
       'A lua brilha cheia do lado de fora enquanto você se recolhe. Permita-se essa contradição — ela é sagrada e te protege da exaustão coletiva.',
-      'Hoje a lua chama você para ser vista, mas seu corpo pede silêncio. Escolha você. Sempre.'
+      'Hoje a lua chama você para ser vista, mas seu corpo pede silêncio. Escolha você. Sempre.',
+      'Plenitude lá fora, vazio aqui dentro. Esse contraste é proteção — não força brilho que não é seu.',
+      'A lua cheia ilumina tudo ao redor para você ver melhor o que precisa soltar antes de começar de novo.'
     ],
     '1_waning': [
       'Lua minguante e fase de renovação são gêmeas: ambas pedem soltura. Deixe ir o que tentou carregar até aqui.',
-      'O ciclo lunar e o seu se alinham num gesto de soltar. O que você libera agora abre espaço para o renascer.'
+      'O ciclo lunar e o seu se alinham num gesto de soltar. O que você libera agora abre espaço para o renascer.',
+      'Duas marés baixando ao mesmo tempo. Esse é o momento mais limpo do mês — escolha cuidadosamente o que vai voltar com você.',
+      'O céu solta, seu corpo solta. Não é tristeza — é alquimia. O que sai abre espaço para o que ainda virá.'
     ],
     // ── Fase 2: CRESCIMENTO ──
     '2_new': [
       'Lua nova e sua primavera interior dançam juntas. É o momento mais fértil para começar — diga sim àquela ideia que insiste em voltar.',
-      'A semente está plantada e o solo está úmido. Sua missão hoje é apenas regar com presença.'
+      'A semente está plantada e o solo está úmido. Sua missão hoje é apenas regar com presença.',
+      'Lua nova é tela em branco. Sua primavera é o pincel. Pinte só o essencial — o resto se revela depois.',
+      'O céu reinicia, você floresce. Junte essas duas energias num único pedido claro — o universo está ouvindo.'
     ],
     '2_waxing': [
       'Você cresce na mesma direção da lua. Seu magnetismo está expandindo — comece o que estava só na imaginação.',
       'A energia que sobe em você é a mesma que sobe no céu. Use essa onda — apresente-se, escreva, ligue, comece.',
-      'Tudo o que você iniciar nestes dias terá vento favorável. Confie no impulso, mas mantenha os pés na terra.'
+      'Tudo o que você iniciar nestes dias terá vento favorável. Confie no impulso, mas mantenha os pés na terra.',
+      'Sua expansão é amplificada pela lua. Não tenha pressa — tenha direção. O céu te empurra na velocidade certa.'
     ],
     '2_full': [
       'Sua primavera encontra a lua cheia — e isso é poder amplificado. Coloque seu nome onde você merece estar.',
-      'Você está crescendo e o universo está iluminando. Seja vista. Hoje, brilhar não é vaidade — é honra.'
+      'Você está crescendo e o universo está iluminando. Seja vista. Hoje, brilhar não é vaidade — é honra.',
+      'Pico de céu e pico de impulso interior. Hoje pode acontecer aquilo que parecia muito longe.',
+      'A lua cheia é o palco. Sua primavera é o ato. Não diminua sua presença — alguém está esperando ver você inteira.'
     ],
     '2_waning': [
       'Mesmo enquanto a lua diminui, sua energia pessoal sobe. Use essa assimetria a seu favor — finalize o velho e prepare o novo.',
-      'Você está em fase de iniciar enquanto o coletivo está soltando. Esse é seu trampolim secreto.'
+      'Você está em fase de iniciar enquanto o coletivo está soltando. Esse é seu trampolim secreto.',
+      'O céu se recolhe, você expande. Nem tudo precisa estar sincronizado — sua estação é diferente e isso é uma dádiva.',
+      'Aproveite a quietude do céu para fundamentar o que está nascendo em você. O silêncio de fora dá clareza ao seu impulso interno.'
     ],
     // ── Fase 3: FORÇA ──
     '3_new': [
       'Sua força interna está acesa enquanto o céu pede recolhimento. Não tenha medo de brilhar mesmo quando a lua se cala.',
-      'Você é fogo no escuro. Hoje sua presença é luz para alguém que precisa.'
+      'Você é fogo no escuro. Hoje sua presença é luz para alguém que precisa.',
+      'Lua nova e seu ápice de força: você é a vela acesa quando tudo está apagado. Use essa luz com discernimento.',
+      'O céu silencia para você ser ouvida. Não desperdice esse palco vazio — diga o que precisa ser dito.'
     ],
     '3_waxing': [
       'Energia ascendente em você e no céu. Hoje o cosmos pede liderança consciente — diga aquilo que precisa ser dito com amor.',
-      'Você está magnética. Pessoas certas vão aparecer. Mantenha-se aberta sem se entregar inteira.'
+      'Você está magnética. Pessoas certas vão aparecer. Mantenha-se aberta sem se entregar inteira.',
+      'Dupla expansão: corpo e céu sobem juntos. Isso é raro e poderoso — escolha um foco e o universo amplifica.',
+      'Sua presença está pesada de bom. Use essa densidade para defender o que importa — sua voz tem peso de verdade.'
     ],
     '3_full': [
       'Você está no pico da sua expressão. A lua cheia amplifica o que já brilha em você — use essa energia para ser vista, para liderar, para criar sem medo.',
       'Hoje é dia de coroar. Sua força e a lua cheia se encontram no zênite do ciclo. O que você pediu há semanas pode chegar agora.',
-      'O universo prepara o palco. Seu corpo é o instrumento. Sua voz é a música. Toque sem pedir licença.'
+      'O universo prepara o palco. Seu corpo é o instrumento. Sua voz é a música. Toque sem pedir licença.',
+      'Auge de céu e auge de você. Esse alinhamento é raro — agradeça e ocupe o espaço inteiro que te pertence.'
     ],
     '3_waning': [
       'Mesmo com a lua minguando, sua força não recua. Conduza com firmeza, mas escolha onde investir essa potência — nem tudo merece seu fogo.',
-      'Você ainda brilha enquanto o céu se recolhe. Use isso para fechar ciclos com elegância.'
+      'Você ainda brilha enquanto o céu se recolhe. Use isso para fechar ciclos com elegância.',
+      'O céu solta, sua força permanece. É hora de podar com firmeza — você sabe o que não vem mais com você.',
+      'Sua chama acesa quando tudo se apaga é sinal de maturidade. Não tenha culpa de ainda querer brilhar.'
     ],
     // ── Fase 4: SABEDORIA ──
     '4_new': [
       'Outono interior e lua nova: o silêncio se aprofunda. Aqui mora a verdade que você vinha evitando — escute sem julgar.',
-      'Quando a lua se esconde e seu corpo se sensibiliza, a intuição chega como sussurro. Anote tudo, mesmo o estranho.'
+      'Quando a lua se esconde e seu corpo se sensibiliza, a intuição chega como sussurro. Anote tudo, mesmo o estranho.',
+      'Duas escuridões se encontram para revelar uma verdade. Não tenha medo do que aparecer — você é maior que qualquer revelação.',
+      'O céu se cala, seu corpo amplifica. O que ressoa hoje é mensagem da sua anciã interna — escute como quem recebe um presente raro.'
     ],
     '4_waxing': [
       'Sua sensibilidade está aguda enquanto a lua cresce. Use essa lente afinada para revisar — não para se cobrar.',
-      'Você vê demais hoje. Lembre-se: nem tudo o que você sente sobre os outros é seu. Devolva o que não é seu.'
+      'Você vê demais hoje. Lembre-se: nem tudo o que você sente sobre os outros é seu. Devolva o que não é seu.',
+      'O céu se anima e você sente tudo em alta resolução. Proteja-se de ambientes barulhentos — sua percepção é receptor sagrado.',
+      'Sua intuição está como antena. Não confunda sensibilidade com fragilidade — é seu superpoder em fase nobre.'
     ],
     '4_full': [
       'Lua cheia + outono interior = revelação. O que você precisava ver finalmente fica claro. Seja gentil com a verdade que aparecer.',
-      'A lua brilha enquanto você sente tudo. Talvez chore. Tudo bem. Lágrima de mulher cíclica é alquimia, não fraqueza.'
+      'A lua brilha enquanto você sente tudo. Talvez chore. Tudo bem. Lágrima de mulher cíclica é alquimia, não fraqueza.',
+      'O céu ilumina o que estava escondido em você. Isso pode doer — e curar — no mesmo respiro. Confie no processo.',
+      'Plenitude do céu encontra sua sabedoria mais aguda. O que você decide hoje vem de um lugar muito antigo dentro de você.'
     ],
     '4_waning': [
       'Lua e corpo soltam juntos. Esta é a fase mais limpa do mês — escreva, queime, perdoe, libere. Amanhã renasce.',
       'Você está em duplo soltar. Permita-se desfazer o que não cabe mais. O vazio que vem em seguida é sagrado.',
-      'Sua sabedoria culmina aqui: você sabe o que precisa morrer. E sabe que não precisa explicar isso para ninguém.'
+      'Sua sabedoria culmina aqui: você sabe o que precisa morrer. E sabe que não precisa explicar isso para ninguém.',
+      'Duas marés baixando: céu e útero. Essa é a faxina cósmica do mês — não atrapalhe o trabalho silencioso da sua intuição.'
     ]
   };
+
+  // Insights complementares por hora do dia (sobrepõem-se ao banco principal)
+  var HOUR_INSIGHTS = {
+    morning: [
+      'A primeira luz do dia carrega o sopro de tudo que ainda não foi feito. Respire fundo antes de tocar o celular.',
+      'Manhã é a hora dos pequenos votos. Faça um agora — em voz baixa, só para você.',
+      'O sol nasce sem pedir permissão. Que sua presença siga esse exemplo hoje.',
+      'O corpo recém-acordado é mais honesto. Pergunte a ele o que realmente importa antes da agenda começar.'
+    ],
+    afternoon: [
+      'A tarde é o meio do caminho — perfeita para revisar sem se cobrar. O que está funcionando merece reconhecimento.',
+      'Sol no zênite: olhe para a sombra que você projeta. Ela conta uma verdade sobre quem você está sendo agora.',
+      'Meio do dia, meio do ciclo, meio da decisão — a clareza chega quando você para de correr e respira três vezes.',
+      'A tarde pede pausa, não força. Beba água. Ajuste a postura. Sua próxima escolha será melhor depois disso.'
+    ],
+    evening: [
+      'O entardecer é convite à transição. Solte o que foi para receber o que virá — mesmo que ainda não saiba.',
+      'A luz dourada do fim de tarde é alquímica. Use esses minutos para fechar pendências do coração, não da agenda.',
+      'O sol se despede sem drama. Que você também consiga soltar o dia sem carregar o peso dele para a noite.',
+      'Hora mágica: o céu mostra como soltar com beleza. Que essa lição se torne um gesto seu antes de dormir.'
+    ],
+    night: [
+      'Madrugada é território de quem escuta o que o dia não deixou ouvir. Anote tudo — mesmo o que parecer sem sentido.',
+      'Quando o mundo dorme, sua intuição fala mais alto. Honre essa hora — ela é portal raro.',
+      'A noite é úmida e fértil. Tudo que você sonhar agora carrega semente — preste atenção ao acordar.',
+      'Madrugada lunar: a hora das brujas, das poetas, das que ouvem antes de falar. Você está em boa companhia.'
+    ]
+  };
+
+  function _getHourBucket() {
+    var h = new Date().getHours();
+    if (h >= 5 && h <= 11) return 'morning';
+    if (h >= 12 && h <= 17) return 'afternoon';
+    if (h >= 18 && h <= 22) return 'evening';
+    return 'night'; // 23-4
+  }
 
   function getLunarPhaseKey() {
     try {
@@ -181,16 +248,22 @@
   }
 
   function generateLocalInsight() {
-    // Reusa insight do dia se já gerado hoje — coerência diária
+    // Coerência por janela de 4h: insight muda ao longo do dia conforme hora
+    var bucket = _getHourBucket();
     var todayKey = new Date().toISOString().split('T')[0];
-    var savedDate = lsGet('insight_data');
+    var bucketKey = todayKey + '_' + bucket;
+    var savedKey = lsGet('insight_bucket_key');
     var savedInsight = lsGet('insight_atual');
-    if (savedDate === todayKey && savedInsight) return savedInsight;
+    if (savedKey === bucketKey && savedInsight) return savedInsight;
 
     var phaseId = getPhaseByDay(state.currentDay);
     var lunarKey = getLunarPhaseKey();
     var combo = phaseId + '_' + lunarKey;
-    var pool = INSIGHTS_BANK[combo] || INSIGHTS_BANK['1_new'];
+    var basePool = INSIGHTS_BANK[combo] || INSIGHTS_BANK['1_new'];
+    var hourPool = HOUR_INSIGHTS[bucket] || [];
+    // Mix: 70% chance do banco principal, 30% do banco horário
+    var useHour = Math.random() < 0.30 && hourPool.length > 0;
+    var pool = useHour ? hourPool : basePool;
 
     var recent = lsGetJSON('recentInsights') || [];
     var available = pool.filter(function(ins) { return recent.indexOf(ins) === -1; });
@@ -198,10 +271,10 @@
 
     var chosen = available[Math.floor(Math.random() * available.length)];
     recent.push(chosen);
-    if (recent.length > 7) recent = recent.slice(-7);
+    if (recent.length > 12) recent = recent.slice(-12);
     lsSetJSON('recentInsights', recent);
     lsSet('insight_atual', chosen);
-    lsSet('insight_data', todayKey);
+    lsSet('insight_bucket_key', bucketKey);
     return chosen;
   }
 
@@ -384,6 +457,19 @@
       border: 'rgba(124,58,237,0.22)', borderLt: 'rgba(124,58,237,0.10)',
       white: '#FFFFFF',
       gold: '#D97706', purple: '#A855F7'
+    },
+    'magia-dourada': {
+      label: 'Magia Dourada', emoji: '🌟', sub: 'âmbar sagrado e mistério',
+      primary: '#F59E0B', primaryDk: '#D97706',
+      rose: '#F59E0B', roseDk: '#D97706',
+      ink: '#FFF8E7', warm: '#FDE68A',
+      muted: '#FBBF24', faint: '#C084FC',
+      bg: '#1A0A00', surface: '#2D1500',
+      cream: '#3A1F08', parchment: '#1F1004',
+      soft: '#3D2410', lavender: '#4A2A18',
+      border: 'rgba(245,158,11,0.30)', borderLt: 'rgba(245,158,11,0.14)',
+      white: '#2D1500',
+      gold: '#FBBF24', purple: '#C084FC'
     }
   };
 
@@ -514,10 +600,21 @@
     state.journalData[dayOrKey] = Object.assign({}, prev, data);
     lsSetJSON('journalData', state.journalData);
     showSaveToast();
-    // Marca registro em lua cheia (para conquista) — apenas em dias 1-28 com conteúdo real
+    // Som de salvamento (528Hz)
+    if (window.AudioManager) { try { AudioManager.playSaveBell(); AudioManager.haptic(20); } catch(e) {} }
+    // Marca registros para conquistas — apenas em dias 1-28 com conteúdo real
     var n = parseInt(dayOrKey, 10);
-    if (!isNaN(n) && n >= 1 && n <= 28 && (data.mood || data.intention || data.reflectionAnswer)) {
+    var hasContent = !!(data.mood || data.intention || data.reflectionAnswer);
+    if (!isNaN(n) && n >= 1 && n <= 28 && hasContent) {
       try { if (isFullMoonToday()) lsSet('fullMoonEntry', '1'); } catch(e) {}
+      // Madrugada Lunar: registro entre 0h e 5h
+      try { var hh = new Date().getHours(); if (hh >= 0 && hh <= 5) lsSet('dawnLunarEntry', '1'); } catch(e) {}
+      // Conta dias distintos com registros (para "Diário de Um Ano")
+      try {
+        var ds = lsGetJSON('entryDates') || {};
+        var todayK = new Date().toISOString().split('T')[0];
+        if (!ds[todayK]) { ds[todayK] = 1; lsSetJSON('entryDates', ds); }
+      } catch(e) {}
     }
     // Atualiza estado de conquistas — pode disparar toast comemorativo
     try { checkNewlyUnlockedAchievements(); } catch(e) {}
@@ -538,9 +635,29 @@
     lsSet('cycleStartDay', day.toString());
   }
 
-  function setView(v) {
+  // ─── HISTORY API HELPERS (lição BemLab v2.1) ───
+  function _pushScreenState(name) {
+    try {
+      if (history.state && history.state.view === name) return;
+      history.pushState({ view: name }, '', '#' + name);
+    } catch(e) {}
+  }
+
+  function _audioCleanupOnLeave(prevView, nextView) {
+    if (!window.AudioManager) return;
+    // Sai de qualquer view com som ativo → cleanup completo
+    var soundViews = ['daily', 'weekly', 'summary', 'timer'];
+    if (soundViews.indexOf(prevView) !== -1 && nextView !== prevView) {
+      try { AudioManager.stopEverything(); } catch(e) {}
+    }
+  }
+
+  function setView(v, fromHistory) {
+    var prev = state.view;
     state.view = v;
     lsSet('view', v);
+    _audioCleanupOnLeave(prev, v);
+    if (!fromHistory) _pushScreenState(v);
     render();
     window.scrollTo(0, 0);
   }
@@ -906,8 +1023,8 @@
     var phase = PHASES[getPhaseByDay(state.currentDay)];
     var ps = getProgressStats();
     var daysToWeekly = Math.max(0, Math.min(28, Math.ceil(state.currentDay / 7) * 7) - state.currentDay);
-    var navItems = ['intro', 'guide', 'daily', 'weekly', 'summary'];
-    var navLabels = { intro: 'Início', guide: 'Guia', daily: 'Diário', weekly: 'Reflexões', summary: 'Síntese' };
+    var navItems = ['intro', 'guide', 'daily', 'weekly', 'summary', 'timer'];
+    var navLabels = { intro: 'Início', guide: 'Guia', daily: 'Diário', weekly: 'Reflexões', summary: 'Síntese', timer: '🧘 Meditar' };
 
     var btns = '<div style="display:flex;flex-wrap:wrap;gap:0.375rem;margin-bottom:0.875rem">';
     navItems.forEach(function(id) {
@@ -1463,7 +1580,55 @@
     });
     html += '</div></div></div></div>';
 
-    html += '</div></div>';
+    html += '</div>'; // fecha #printable-summary
+
+    // ─── BUSCA + FILTRO POR FASE (fora do printable-summary) ───
+    var sq = (state._diarySearch || '').toLowerCase();
+    var pf = state._diaryPhaseFilter || 0; // 0 = todas
+    var filteredEntries = [];
+    for (var dn = 1; dn <= 28; dn++) {
+      var en = state.journalData[dn] || {};
+      if (!(en.mood || en.intention || en.reflectionAnswer || en.gratitude || en.learning)) continue;
+      if (pf > 0 && getPhaseByDay(dn) !== pf) continue;
+      if (sq) {
+        var hay = ((en.intention || '') + ' ' + (en.reflectionAnswer || '') + ' ' + (en.gratitude || '') + ' ' + (en.learning || '') + ' ' + (en.mood || '')).toLowerCase();
+        if (hay.indexOf(sq) === -1) continue;
+      }
+      filteredEntries.push({ day: dn, e: en, phase: PHASES[getPhaseByDay(dn)] });
+    }
+
+    var phasePills = '';
+    [{ id: 0, l: 'Todas' }, { id: 1, l: 'Renovação' }, { id: 2, l: 'Crescimento' }, { id: 3, l: 'Força' }, { id: 4, l: 'Sabedoria' }].forEach(function(p) {
+      var act = pf === p.id;
+      var col = p.id === 0 ? T.rose : PHASES[p.id].hex;
+      phasePills += '<button type="button" data-phase-filter="' + p.id + '" style="padding:0.45rem 0.75rem;border-radius:9999px;border:1.5px solid ' + (act ? col : T.border) + ';background:' + (act ? col + '22' : T.cream) + ';color:' + (act ? col : T.faint) + ';font-weight:700;font-size:0.75rem;cursor:pointer;font-family:var(--sans);min-height:36px;touch-action:manipulation">' + p.l + '</button>';
+    });
+
+    var resultsHTML = '';
+    if (filteredEntries.length === 0) {
+      resultsHTML = '<p style="color:' + T.faint + ';font-size:0.85rem;text-align:center;padding:1.25rem 0;margin:0">' + ((sq || pf > 0) ? 'Nenhum registro encontrado com esses filtros.' : 'Comece a registrar e seus achados aparecerão aqui.') + '</p>';
+    } else {
+      filteredEntries.forEach(function(item) {
+        var snippet = item.e.intention || item.e.reflectionAnswer || item.e.gratitude || item.e.learning || '';
+        if (snippet.length > 140) snippet = snippet.slice(0, 140) + '…';
+        resultsHTML += '<button type="button" data-search-day="' + item.day + '" style="text-align:left;display:block;width:100%;background:' + T.cream + ';border:1px solid ' + T.borderLt + ';border-left:3px solid ' + item.phase.hex + ';border-radius:0.875rem;padding:0.75rem 0.875rem;cursor:pointer;font-family:var(--sans);min-height:48px;touch-action:manipulation;margin-bottom:0.5rem">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem">' +
+            '<span style="font-size:0.7rem;font-weight:700;color:' + item.phase.hex + ';text-transform:uppercase;letter-spacing:0.06em">Dia ' + item.day + ' · ' + item.phase.name + '</span>' +
+            (item.e.mood ? '<span style="font-size:0.85rem">' + esc(item.e.mood.split(' ')[0]) + '</span>' : '') +
+          '</div>' +
+          (snippet ? '<p style="font-size:0.8rem;color:' + T.ink + ';margin:0;line-height:1.45">' + esc(snippet) + '</p>' : '') +
+        '</button>';
+      });
+    }
+
+    html += '<div class="card-responsive" style="margin-top:0"><h3 class="section-header">' + icon('search', 17, T.rose) + ' Buscar nos registros</h3>' +
+      '<input type="text" id="diary-search-input" placeholder="Digite uma palavra..." value="' + esc(state._diarySearch || '') + '" style="width:100%;padding:0.75rem 0.875rem;border-radius:0.875rem;border:1px solid ' + T.border + ';background:' + T.surface + ';color:' + T.ink + ';font-size:0.95rem;font-family:var(--sans);min-height:44px;margin-bottom:0.75rem">' +
+      '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.875rem">' + phasePills + '</div>' +
+      '<div style="max-height:24rem;overflow-y:auto;-webkit-overflow-scrolling:touch">' + resultsHTML + '</div>' +
+      '<p style="font-size:0.7rem;color:' + T.faint + ';margin:0.625rem 0 0">' + filteredEntries.length + ' resultado(s)</p>' +
+    '</div>';
+
+    html += '</div>';
     return html;
   }
 
@@ -1474,6 +1639,18 @@
   function showOracleModal(type, loading, content) {
     var el = document.getElementById('oracle-modal');
     if (!el) return;
+    // Som de revelação (cristal 963Hz) — só na transição loading→conteúdo
+    if (!loading && window.AudioManager) {
+      try { AudioManager.playOracleReveal(); } catch(e) {}
+    }
+    // Conta cada consulta finalizada para conquistas
+    if (!loading) {
+      try {
+        var oc = parseInt(lsGet('oracle_count') || '0', 10);
+        if (isNaN(oc)) oc = 0;
+        lsSet('oracle_count', String(oc + 1));
+      } catch(e) {}
+    }
     var mobile = isMobile();
     el.innerHTML = '<div id="oracle-overlay" style="position:fixed;inset:0;z-index:200;display:flex;align-items:' + (mobile ? 'flex-end' : 'center') + ';justify-content:center;padding:' + (mobile ? '0' : '1rem') + ';background:rgba(0,0,0,0.52);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)">' +
       '<div class="oracle-modal-card">' +
@@ -1609,6 +1786,7 @@
     document.querySelectorAll('[data-theme-id]').forEach(function(btn) {
       btn.onclick = function() {
         var id = btn.getAttribute('data-theme-id');
+        if (window.AudioManager) { try { AudioManager.playThemePreview(id); } catch(e) {} }
         applyTheme(id);
         close();
         showSuccessToast('Tema "' + THEMES[id].label + '" aplicado');
@@ -1622,11 +1800,15 @@
     { id: 'sevenNights', emoji: '🌙', name: '7 Noites', desc: '7 dias de registros', total: 7 },
     { id: 'fullCycle', emoji: '✦', name: 'Ciclo Completo', desc: '28 registros realizados', total: 28 },
     { id: 'oracle', emoji: '🔮', name: 'Oráculo Consultado', desc: 'Primeiro insight lido', total: 1 },
+    { id: 'oracle10', emoji: '🌌', name: 'Oráculo Consultado 10×', desc: '10 consultas ao oráculo', total: 10 },
     { id: 'scribe', emoji: '📖', name: 'Escriba Lunar', desc: '10 entradas no diário', total: 10 },
     { id: 'fullMoon', emoji: '🌕', name: 'Lua Cheia', desc: 'Registrou durante uma lua cheia', total: 1 },
+    { id: 'dawnLunar', emoji: '🌒', name: 'Madrugada Lunar', desc: 'Registro entre 0h e 5h', total: 1 },
+    { id: 'anciaVoice', emoji: '🦉', name: 'Voz da Anciã', desc: 'Completou a fase Sabedoria (dias 22-28)', total: 7 },
     { id: 'faithful', emoji: '💜', name: 'Fiel ao Ciclo', desc: '3 meses de uso', total: 90 },
     { id: 'stellar', emoji: '⭐', name: 'Guardiã Estelar', desc: '6 meses de uso', total: 180 },
-    { id: 'master', emoji: '🏆', name: 'Mestra Lunar', desc: '1 ano de uso', total: 365 }
+    { id: 'master', emoji: '🏆', name: 'Mestra Lunar', desc: '1 ano de uso', total: 365 },
+    { id: 'yearJournal', emoji: '📜', name: 'Diário de Um Ano', desc: '365 dias com registro', total: 365 }
   ];
 
   function isFullMoonToday() {
@@ -1654,17 +1836,36 @@
     var count = entries.length;
     var hasOracle = !!(state.journalData && state.journalData.__oracleUsed);
     var hasFullMoonEntry = !!lsGet('fullMoonEntry');
+    var hasDawn = !!lsGet('dawnLunarEntry');
+
+    var oracleCount = parseInt(lsGet('oracle_count') || '0', 10);
+    if (isNaN(oracleCount)) oracleCount = 0;
+
+    // Voz da Anciã: contagem de dias 22-28 com registro real
+    var anciaCount = 0;
+    for (var dd = 22; dd <= 28; dd++) {
+      var en = state.journalData[dd];
+      if (en && (en.mood || en.intention || en.reflectionAnswer)) anciaCount++;
+    }
+
+    // Diário de Um Ano: dias distintos com registro
+    var entryDates = lsGetJSON('entryDates') || {};
+    var distinctDays = Object.keys(entryDates).length;
 
     var progressMap = {
       firstSeed: { current: Math.min(1, count), unlocked: count >= 1 },
       sevenNights: { current: Math.min(7, count), unlocked: count >= 7 },
       fullCycle: { current: Math.min(28, count), unlocked: count >= 28 },
-      oracle: { current: hasOracle ? 1 : 0, unlocked: hasOracle },
+      oracle: { current: hasOracle ? 1 : (oracleCount > 0 ? 1 : 0), unlocked: hasOracle || oracleCount >= 1 },
+      oracle10: { current: Math.min(10, oracleCount), unlocked: oracleCount >= 10 },
       scribe: { current: Math.min(10, count), unlocked: count >= 10 },
       fullMoon: { current: hasFullMoonEntry ? 1 : 0, unlocked: hasFullMoonEntry },
+      dawnLunar: { current: hasDawn ? 1 : 0, unlocked: hasDawn },
+      anciaVoice: { current: anciaCount, unlocked: anciaCount >= 7 },
       faithful: { current: Math.min(90, daysSinceFirst), unlocked: daysSinceFirst >= 90 },
       stellar: { current: Math.min(180, daysSinceFirst), unlocked: daysSinceFirst >= 180 },
-      master: { current: Math.min(365, daysSinceFirst), unlocked: daysSinceFirst >= 365 }
+      master: { current: Math.min(365, daysSinceFirst), unlocked: daysSinceFirst >= 365 },
+      yearJournal: { current: Math.min(365, distinctDays), unlocked: distinctDays >= 365 }
     };
     return ACHIEVEMENTS.map(function(a) {
       var p = progressMap[a.id] || { current: 0, unlocked: false };
@@ -1678,6 +1879,10 @@
     var newly = current.filter(function(id) { return prev.indexOf(id) === -1; });
     if (newly.length > 0) {
       lsSetJSON('unlockedAchievements', current);
+      // Som comemorativo (sequência 432→528→639Hz) + haptic
+      if (window.AudioManager) {
+        try { AudioManager.playAchievement(); AudioManager.haptic([30, 60, 30]); } catch(e) {}
+      }
       // Mostra toast comemorativo do primeiro recém-desbloqueado
       var first = ACHIEVEMENTS.filter(function(a) { return a.id === newly[0]; })[0];
       if (first) {
@@ -1966,6 +2171,177 @@
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // TIMER (Meditação)
+  // ─────────────────────────────────────────────────────────────────────────────
+  var TIMER_PRESETS_SEC = [
+    { label: '5min', s: 5 * 60 },
+    { label: '10min', s: 10 * 60 },
+    { label: '15min', s: 15 * 60 },
+    { label: '20min', s: 20 * 60 },
+    { label: '30min', s: 30 * 60 },
+    { label: '45min', s: 45 * 60 },
+    { label: '1h', s: 60 * 60 },
+    { label: '2h', s: 2 * 60 * 60 }
+  ];
+
+  var Timer = {
+    durationSec: 0,
+    remaining: 0,
+    running: false,
+    intervalId: null,
+    wakeLock: null,
+    customH: 0,
+    customM: 10
+  };
+
+  function _loadTimerPref() {
+    try {
+      var v = lsGet('diariolunar_timer_preferencia');
+      if (!v) return;
+      var p = JSON.parse(v);
+      if (p && typeof p.durationSec === 'number' && p.durationSec > 0) Timer.durationSec = p.durationSec;
+      if (p && typeof p.customH === 'number') Timer.customH = p.customH;
+      if (p && typeof p.customM === 'number') Timer.customM = p.customM;
+    } catch(e) {}
+  }
+  function _saveTimerPref() {
+    try {
+      lsSet('diariolunar_timer_preferencia', JSON.stringify({
+        durationSec: Timer.durationSec,
+        customH: Timer.customH,
+        customM: Timer.customM
+      }));
+    } catch(e) {}
+  }
+
+  function _formatTime(sec) {
+    sec = Math.max(0, Math.floor(sec));
+    var h = Math.floor(sec / 3600);
+    var m = Math.floor((sec % 3600) / 60);
+    var s = sec % 60;
+    var mm = (m < 10 ? '0' : '') + m;
+    var ss = (s < 10 ? '0' : '') + s;
+    if (h > 0) return h + ':' + mm + ':' + ss;
+    return mm + ':' + ss;
+  }
+
+  function _acquireWakeLock() {
+    if (!navigator.wakeLock) return;
+    navigator.wakeLock.request('screen').then(function(lock) {
+      Timer.wakeLock = lock;
+      lock.addEventListener('release', function() { Timer.wakeLock = null; });
+    }).catch(function() {});
+  }
+  function _releaseWakeLock() {
+    if (Timer.wakeLock) {
+      try { Timer.wakeLock.release(); } catch(e) {}
+      Timer.wakeLock = null;
+    }
+  }
+
+  function startTimer() {
+    if (Timer.running || Timer.durationSec <= 0) return;
+    Timer.remaining = Timer.durationSec;
+    Timer.running = true;
+    if (window.AudioManager) {
+      try {
+        AudioManager.playEntryBell();
+        // Atmosfera sutil baseada na fase do ciclo atual
+        var phaseId = getPhaseByDay(state.currentDay);
+        AudioManager.startCyclePhaseAmbience(phaseId);
+      } catch(e) {}
+    }
+    _acquireWakeLock();
+    _saveTimerPref();
+    var endAt = Date.now() + Timer.remaining * 1000;
+    Timer.intervalId = setInterval(function() {
+      Timer.remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+      var el = document.getElementById('timer-display');
+      if (el) el.textContent = _formatTime(Timer.remaining);
+      if (Timer.remaining <= 0) finishTimer(false);
+    }, 250);
+    var btn = document.getElementById('btn-timer-toggle');
+    if (btn) btn.textContent = 'Pausar';
+  }
+
+  function pauseTimer() {
+    if (!Timer.running) return;
+    Timer.running = false;
+    if (Timer.intervalId) { clearInterval(Timer.intervalId); Timer.intervalId = null; }
+    _releaseWakeLock();
+    var btn = document.getElementById('btn-timer-toggle');
+    if (btn) btn.textContent = 'Continuar';
+  }
+
+  function finishTimer(byUser) {
+    if (Timer.intervalId) { clearInterval(Timer.intervalId); Timer.intervalId = null; }
+    Timer.running = false;
+    Timer.remaining = 0;
+    _releaseWakeLock();
+    if (window.AudioManager) {
+      try {
+        AudioManager.stopCyclePhaseAmbience();
+        AudioManager.playSaveBell();
+        AudioManager.haptic([40, 80, 40]);
+      } catch(e) {}
+    }
+    var el = document.getElementById('timer-display');
+    if (el) el.textContent = _formatTime(Timer.durationSec);
+    var btn = document.getElementById('btn-timer-toggle');
+    if (btn) btn.textContent = 'Iniciar';
+    if (!byUser) {
+      try { showSuccessToast('🧘 Meditação concluída'); } catch(e) {}
+    }
+  }
+
+  function renderTimer() {
+    _loadTimerPref();
+    var presetsHTML = TIMER_PRESETS_SEC.map(function(p) {
+      var active = Timer.durationSec === p.s;
+      return '<button type="button" data-timer-preset="' + p.s + '" style="padding:0.625rem 0.875rem;border-radius:9999px;border:1.5px solid ' + (active ? T.rose : T.border) + ';background:' + (active ? T.rose + '22' : T.cream) + ';color:' + (active ? T.rose : T.ink) + ';font-weight:700;font-size:0.85rem;cursor:pointer;font-family:var(--sans);min-height:44px;touch-action:manipulation">' + p.label + '</button>';
+    }).join('');
+    var initial = Timer.running ? Timer.remaining : (Timer.durationSec || 0);
+    return '<section style="display:flex;flex-direction:column;gap:1.25rem;max-width:24rem;margin:0 auto;padding:0.5rem 0">' +
+      '<header style="text-align:center">' +
+        '<div style="font-size:1.875rem">🧘</div>' +
+        '<h2 style="font-family:var(--serif);font-size:1.5rem;color:' + T.ink + ';margin:0.25rem 0 0.125rem">Tempo de Meditar</h2>' +
+        '<p style="font-size:0.8125rem;color:' + T.faint + ';margin:0">Escolha um tempo, escute, retorne.</p>' +
+      '</header>' +
+
+      '<div style="background:' + T.surface + ';border:1px solid ' + T.border + ';border-radius:1.5rem;padding:1.5rem;text-align:center">' +
+        '<div id="timer-display" style="font-family:var(--serif);font-size:3.25rem;color:' + T.ink + ';font-weight:700;letter-spacing:0.04em;margin-bottom:1rem">' + _formatTime(initial) + '</div>' +
+        '<div style="display:flex;gap:0.625rem;justify-content:center">' +
+          '<button type="button" id="btn-timer-toggle" class="btn btn-md btn-primary" style="min-width:8rem">' + (Timer.running ? 'Pausar' : 'Iniciar') + '</button>' +
+          '<button type="button" id="btn-timer-stop" class="btn btn-md btn-outline">Parar</button>' +
+        '</div>' +
+      '</div>' +
+
+      '<div style="background:' + T.cream + ';border:1px solid ' + T.borderLt + ';border-radius:1.25rem;padding:1rem">' +
+        '<p style="font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:' + T.muted + ';margin:0 0 0.625rem">Tempos prontos</p>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:0.5rem">' + presetsHTML + '</div>' +
+      '</div>' +
+
+      '<div style="background:' + T.cream + ';border:1px solid ' + T.borderLt + ';border-radius:1.25rem;padding:1rem">' +
+        '<p style="font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:' + T.muted + ';margin:0 0 0.625rem">Personalizado (até 12h)</p>' +
+        '<div style="display:flex;gap:0.625rem;align-items:center">' +
+          '<label style="flex:1;display:flex;flex-direction:column;gap:0.25rem">' +
+            '<span style="font-size:0.7rem;color:' + T.faint + '">Horas</span>' +
+            '<input type="number" id="timer-h" min="0" inputmode="numeric" value="' + Timer.customH + '" style="padding:0.625rem;border-radius:0.75rem;border:1px solid ' + T.border + ';background:' + T.surface + ';color:' + T.ink + ';font-size:1rem;font-family:var(--sans);text-align:center;min-height:44px">' +
+          '</label>' +
+          '<label style="flex:1;display:flex;flex-direction:column;gap:0.25rem">' +
+            '<span style="font-size:0.7rem;color:' + T.faint + '">Minutos</span>' +
+            '<input type="number" id="timer-m" min="0" inputmode="numeric" value="' + Timer.customM + '" style="padding:0.625rem;border-radius:0.75rem;border:1px solid ' + T.border + ';background:' + T.surface + ';color:' + T.ink + ';font-size:1rem;font-family:var(--sans);text-align:center;min-height:44px">' +
+          '</label>' +
+          '<button type="button" id="btn-timer-custom" class="btn btn-md btn-outline" style="margin-top:1.125rem">OK</button>' +
+        '</div>' +
+        '<p style="font-size:0.7rem;color:' + T.faint + ';margin:0.5rem 0 0">Limite máximo: 12 horas (720 min)</p>' +
+      '</div>' +
+
+      '<button type="button" data-nav="daily" class="btn btn-md btn-outline" style="align-self:center">Voltar ao diário</button>' +
+    '</section>';
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // MAIN RENDER
   // ─────────────────────────────────────────────────────────────────────────────
   function render() {
@@ -1986,6 +2362,7 @@
     else if (state.view === 'daily') content = renderDaily();
     else if (state.view === 'weekly') content = renderWeekly();
     else if (state.view === 'summary') content = renderSummary();
+    else if (state.view === 'timer') content = renderTimer();
 
     root.innerHTML = '<div style="min-height:100vh;background:' + T.bg + ';font-family:var(--sans)">' +
       '<div id="day-advance-modal" class="hidden"></div>' +
@@ -2018,6 +2395,40 @@
       };
     });
 
+    // ── SWIPE HORIZONTAL entre tabs principais (esquerda/direita) ──
+    (function() {
+      var main = document.querySelector('main.app-main');
+      if (!main) return;
+      var order = ['intro', 'guide', 'daily', 'weekly', 'summary'];
+      var idx = order.indexOf(state.view);
+      if (idx === -1) return; // 'timer' fica fora do swipe
+      var sx = 0, sy = 0, tracking = false;
+      main.addEventListener('touchstart', function(e) {
+        if (!e.touches || e.touches.length !== 1) return;
+        sx = e.touches[0].clientX; sy = e.touches[0].clientY; tracking = true;
+      }, { passive: true });
+      main.addEventListener('touchend', function(e) {
+        if (!tracking) return; tracking = false;
+        var t = e.changedTouches && e.changedTouches[0]; if (!t) return;
+        var dx = t.clientX - sx, dy = t.clientY - sy;
+        if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+        // Bloqueia swipe se vier de elementos roláveis horizontais (fitas, sliders)
+        var el = e.target;
+        while (el && el !== main) {
+          var ov = window.getComputedStyle(el).overflowX;
+          if ((ov === 'auto' || ov === 'scroll') && el.scrollWidth > el.clientWidth) return;
+          el = el.parentElement;
+        }
+        var next;
+        if (dx < 0) next = order[idx + 1]; // swipe esquerda → avança
+        else next = order[idx - 1];        // swipe direita → volta
+        if (next) {
+          if (window.AudioManager) { try { AudioManager.haptic(15); } catch(err) {} }
+          setView(next);
+        }
+      }, { passive: true });
+    })();
+
     // FAB
     var fabToggle = document.getElementById('fab-toggle');
     var fabPanel = document.getElementById('fab-panel');
@@ -2045,6 +2456,48 @@
         if (fabPanel) fabPanel.classList.add('hidden');
       });
     });
+
+    // ── TIMER (meditação) ──
+    if (state.view === 'timer') {
+      document.querySelectorAll('[data-timer-preset]').forEach(function(b) {
+        b.onclick = function() {
+          var sec = parseInt(b.getAttribute('data-timer-preset'), 10);
+          if (isNaN(sec) || sec <= 0) return;
+          if (Timer.running) pauseTimer();
+          Timer.durationSec = sec;
+          Timer.remaining = sec;
+          _saveTimerPref();
+          render();
+        };
+      });
+      var btnTog = document.getElementById('btn-timer-toggle');
+      if (btnTog) btnTog.onclick = function() {
+        if (Timer.running) pauseTimer();
+        else if (Timer.durationSec > 0) startTimer();
+        else showSuccessToast('Escolha um tempo primeiro');
+      };
+      var btnStop = document.getElementById('btn-timer-stop');
+      if (btnStop) btnStop.onclick = function() { finishTimer(true); render(); };
+      var btnCustom = document.getElementById('btn-timer-custom');
+      if (btnCustom) btnCustom.onclick = function() {
+        var h = parseInt((document.getElementById('timer-h') || {}).value, 10);
+        var m = parseInt((document.getElementById('timer-m') || {}).value, 10);
+        if (isNaN(h) || h < 0) h = 0;
+        if (isNaN(m) || m < 0) m = 0;
+        var totalMin = h * 60 + m;
+        if (totalMin <= 0) { showSuccessToast('Defina um tempo válido'); return; }
+        if (totalMin > 720) {
+          showSuccessToast('Limite máximo: 12h. Ajustando para 12h.');
+          totalMin = 720; h = 12; m = 0;
+        }
+        Timer.customH = h; Timer.customM = m;
+        if (Timer.running) pauseTimer();
+        Timer.durationSec = totalMin * 60;
+        Timer.remaining = Timer.durationSec;
+        _saveTimerPref();
+        render();
+      };
+    }
 
     // Quick actions no FAB Map: tema + conquistas
     var actTheme = document.getElementById('fab-action-theme');
@@ -2259,6 +2712,30 @@
         };
       });
 
+      // Busca + filtro por fase
+      var sInput = document.getElementById('diary-search-input');
+      if (sInput) {
+        sInput.oninput = makeDebouncer(function() {
+          state._diarySearch = sInput.value || '';
+          render();
+          // Re-foca o input após render
+          var ni = document.getElementById('diary-search-input');
+          if (ni) { ni.focus(); ni.setSelectionRange(ni.value.length, ni.value.length); }
+        }, 300);
+      }
+      document.querySelectorAll('[data-phase-filter]').forEach(function(btn) {
+        btn.onclick = function() {
+          state._diaryPhaseFilter = parseInt(btn.getAttribute('data-phase-filter'), 10) || 0;
+          render();
+        };
+      });
+      document.querySelectorAll('[data-search-day]').forEach(function(btn) {
+        btn.onclick = function() {
+          updateCurrentDay(parseInt(btn.getAttribute('data-search-day'), 10));
+          setView('daily');
+        };
+      });
+
       var btnPDF = document.getElementById('btn-export-pdf');
       if (btnPDF) btnPDF.onclick = function() {
         showConfirmModal({
@@ -2355,7 +2832,7 @@
       if (saved) state.journalData = saved;
       if (savedDay) { var p = parseInt(savedDay, 10); if (!isNaN(p)) state.currentDay = p; }
       if (savedMode) state.dailyMode = savedMode;
-      if (savedView && ['intro','guide','daily','weekly','summary'].indexOf(savedView) !== -1) state.view = savedView;
+      if (savedView && ['intro','guide','daily','weekly','summary','timer'].indexOf(savedView) !== -1) state.view = savedView;
       if (savedWeek) { var w = parseInt(savedWeek, 10); if (!isNaN(w) && w >= 1 && w <= 4) state.selectedWeek = w; }
       // Aplica tema salvo (sem rerender — render() ocorre logo abaixo)
       applyTheme(savedTheme && THEMES[savedTheme] ? savedTheme : 'noite-lunar', { rerender: false });
@@ -2372,6 +2849,27 @@
     if (calculated && calculated !== storedDay && calculated > 0 && calculated <= 28) {
       state.suggestedDay = calculated;
     }
+
+    // History API: registra view inicial e instala popstate
+    try {
+      history.replaceState({ view: state.view }, '', '#' + state.view);
+    } catch(e) {}
+    window.addEventListener('popstate', function(ev) {
+      var target = (ev.state && ev.state.view) || 'intro';
+      if (['intro','guide','daily','weekly','summary','timer'].indexOf(target) === -1) target = 'intro';
+      if (target !== state.view) setView(target, true);
+    });
+
+    // Safety net: pausar áudio em background / encerrar ao sair (lição BemLab)
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden && window.AudioManager) {
+        try { AudioManager.stopAll(0.3); } catch(e) {}
+        if (typeof Timer !== 'undefined' && Timer.running) pauseTimer();
+      }
+    });
+    window.addEventListener('pagehide', function() {
+      if (window.AudioManager) { try { AudioManager.stopEverything(); } catch(e) {} }
+    });
 
     // Render
     render();
