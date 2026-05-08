@@ -657,10 +657,152 @@
     state.view = v;
     lsSet('view', v);
     _audioCleanupOnLeave(prev, v);
+    // Anti som-fantasma + anti timer-fantasma: ao sair da view 'timer', pausa
+    if (prev === 'timer' && v !== 'timer') {
+      try {
+        if (typeof Timer !== 'undefined' && Timer.running && typeof pauseTimer === 'function') {
+          pauseTimer();
+        }
+      } catch(e) { console.warn('setView pauseTimer failed (safe):', e && e.message); }
+    }
+    // Cleanup de listeners da tela anterior (registry do AppController)
+    try {
+      if (window.AppController && prev && prev !== v) {
+        window.AppController.cleanupScreen(prev);
+        window.AppController.state.currentScreen = v;
+      }
+    } catch(e) { console.warn('setView cleanupScreen failed (safe):', e && e.message); }
     if (!fromHistory) _pushScreenState(v);
     render();
     window.scrollTo(0, 0);
   }
+
+  // ─── APP CONTROLLER (orquestrador central — lição BemLab v3) ───
+  // Resolve: crash iOS Safari, memory leak de listeners, timer-fantasma,
+  // botão voltar saindo do app. Operações idempotentes e graceful.
+  var AppController = {
+    state: {
+      initialized: false,
+      currentScreen: null,
+      screenListeners: {},
+      wakeLock: null
+    },
+
+    // Para tudo que está rodando (timer + wakeLock próprio). Idempotente.
+    stopEverything: function() {
+      try {
+        if (typeof Timer !== 'undefined' && Timer.running && typeof pauseTimer === 'function') {
+          pauseTimer();
+        }
+      } catch(e) { console.warn('stopEverything pauseTimer failed (safe):', e && e.message); }
+      if (this.state.wakeLock) {
+        try { this.state.wakeLock.release(); } catch(e) {}
+        this.state.wakeLock = null;
+      }
+    },
+
+    // Navegação central. Limpa listeners da tela atual e delega a setView.
+    navigate: function(screen, pushHistory) {
+      try {
+        this.cleanupScreen(this.state.currentScreen);
+      } catch(e) { console.warn('navigate cleanup failed (safe):', e && e.message); }
+      this.state.currentScreen = screen;
+      try {
+        if (pushHistory !== false) {
+          if (!(history.state && history.state.view === screen)) {
+            history.pushState({ view: screen }, '', '#' + screen);
+          }
+        }
+      } catch(e) { console.warn('history.pushState failed (safe):', e && e.message); }
+      try {
+        if (typeof setView === 'function') setView(screen, true);
+      } catch(e) { console.error('navigate->setView failed:', e); }
+    },
+
+    // Registra listener associado à tela; será removido em cleanupScreen.
+    addScreenListener: function(screen, element, event, handler, options) {
+      if (!element) return;
+      if (!this.state.screenListeners[screen]) this.state.screenListeners[screen] = [];
+      try {
+        element.addEventListener(event, handler, options);
+        this.state.screenListeners[screen].push({ element: element, event: event, handler: handler });
+      } catch(e) { console.warn('addScreenListener failed (safe):', e && e.message); }
+    },
+
+    // Remove todos os listeners registrados para a tela.
+    cleanupScreen: function(screen) {
+      if (!screen) return;
+      var arr = this.state.screenListeners[screen];
+      if (!arr) return;
+      arr.forEach(function(l) {
+        try { l.element.removeEventListener(l.event, l.handler); } catch(e) {}
+      });
+      this.state.screenListeners[screen] = [];
+    },
+
+    // Setup global. Chamar uma vez no boot.
+    init: function() {
+      if (this.state.initialized) return;
+      this.state.initialized = true;
+      var self = this;
+
+      // Garante history state inicial
+      try {
+        var initial = (state && state.view) || 'intro';
+        history.replaceState({ view: initial }, '', '#' + initial);
+        self.state.currentScreen = initial;
+      } catch(e) {}
+
+      // Botão voltar — nunca sai do app
+      window.addEventListener('popstate', function(ev) {
+        try {
+          var target = (ev.state && ev.state.view) || 'intro';
+          var allowed = ['intro','guide','daily','weekly','summary','timer'];
+          if (allowed.indexOf(target) === -1) target = 'intro';
+          if (target !== state.view) {
+            self.cleanupScreen(self.state.currentScreen);
+            self.state.currentScreen = target;
+            if (typeof setView === 'function') setView(target, true);
+          }
+        } catch(err) { console.error('popstate handler failed:', err); }
+      });
+
+      // App em background — pausa áudio e timer (não destrói)
+      document.addEventListener('visibilitychange', function() {
+        try {
+          if (document.hidden) {
+            if (window.AudioManager) {
+              try { AudioManager.stopAll(0.3); } catch(e) {}
+            }
+            if (typeof Timer !== 'undefined' && Timer.running && typeof pauseTimer === 'function') {
+              try { pauseTimer(); } catch(e) {}
+            }
+          }
+        } catch(e) {}
+      });
+
+      // App fechando — encerra tudo
+      window.addEventListener('pagehide', function() {
+        try { self.stopEverything(); } catch(e) {}
+        if (window.AudioManager) {
+          try { AudioManager.stopEverything(); } catch(e) {}
+        }
+      });
+
+      // ⚠️ iOS Safari crash guards — exception não tratada mata o processo
+      window.addEventListener('error', function(e) {
+        console.error('Global error caught:', e && e.message, e && e.filename, e && e.lineno);
+        try { self.stopEverything(); } catch(err) {}
+      });
+
+      window.addEventListener('unhandledrejection', function(e) {
+        console.error('Unhandled promise rejection:', e && e.reason);
+        try { e.preventDefault(); } catch(err) {}
+      });
+    }
+  };
+
+  window.AppController = AppController;
 
   // ─── PROGRESS RING SVG ───
   function progressRingSVG(value, max, size, stroke, color) {
@@ -2226,11 +2368,15 @@
   }
 
   function _acquireWakeLock() {
-    if (!navigator.wakeLock) return;
-    navigator.wakeLock.request('screen').then(function(lock) {
-      Timer.wakeLock = lock;
-      lock.addEventListener('release', function() { Timer.wakeLock = null; });
-    }).catch(function() {});
+    if (!('wakeLock' in navigator)) return;
+    try {
+      navigator.wakeLock.request('screen').then(function(lock) {
+        Timer.wakeLock = lock;
+        try {
+          lock.addEventListener('release', function() { Timer.wakeLock = null; });
+        } catch(e) {}
+      }).catch(function(e) { console.warn('WakeLock unavailable (safe):', e && e.message); });
+    } catch(e) { console.warn('WakeLock request failed (safe):', e && e.message); }
   }
   function _releaseWakeLock() {
     if (Timer.wakeLock) {
@@ -2850,26 +2996,9 @@
       state.suggestedDay = calculated;
     }
 
-    // History API: registra view inicial e instala popstate
-    try {
-      history.replaceState({ view: state.view }, '', '#' + state.view);
-    } catch(e) {}
-    window.addEventListener('popstate', function(ev) {
-      var target = (ev.state && ev.state.view) || 'intro';
-      if (['intro','guide','daily','weekly','summary','timer'].indexOf(target) === -1) target = 'intro';
-      if (target !== state.view) setView(target, true);
-    });
-
-    // Safety net: pausar áudio em background / encerrar ao sair (lição BemLab)
-    document.addEventListener('visibilitychange', function() {
-      if (document.hidden && window.AudioManager) {
-        try { AudioManager.stopAll(0.3); } catch(e) {}
-        if (typeof Timer !== 'undefined' && Timer.running) pauseTimer();
-      }
-    });
-    window.addEventListener('pagehide', function() {
-      if (window.AudioManager) { try { AudioManager.stopEverything(); } catch(e) {} }
-    });
+    // AppController: instala popstate, visibilitychange, pagehide,
+    // window.error e unhandledrejection (iOS Safari crash guards).
+    try { AppController.init(); } catch(e) { console.error('AppController.init failed:', e); }
 
     // Render
     render();
