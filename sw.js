@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
 // Diário Lunar — Service Worker (Stale-While-Revalidate)
 // ═══════════════════════════════════════════════════════════════════
-const CACHE_NAME = 'diariolunar-v7';
+const CACHE_NAME = 'diariolunar-v8';
 const OFFLINE_URL = './offline.html';
 
 const PRECACHE_URLS = [

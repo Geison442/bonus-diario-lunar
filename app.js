@@ -62,6 +62,19 @@
 
   // ─── UTILITIES ───
   function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  // Realça ocorrências de `term` em `text` retornando HTML escapado com <mark> nos matches.
+  function highlight(text, term) {
+    var safe = esc(text || '');
+    if (!term) return safe;
+    var t = String(term).trim();
+    if (!t) return safe;
+    var escTerm = esc(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    try {
+      var re = new RegExp('(' + escTerm + ')', 'gi');
+      return safe.replace(re, '<mark style="background:#FCD34D;color:#1C1917;padding:0 2px;border-radius:3px">$1</mark>');
+    } catch(e) { return safe; }
+  }
   function parseLocalDate(d) { return new Date(d + 'T12:00:00'); }
   function isMobile() { return window.innerWidth <= 600; }
 
@@ -307,6 +320,159 @@
     return scriptCache[src];
   }
 
+  // ─── EXPORT: Diário Completo (HTML elegante em nova aba) ───
+  function renderFullDiaryHTML() {
+    var MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    var now = new Date();
+    var mesNome = MESES[now.getMonth()];
+    var ano = now.getFullYear();
+    var nomeArquivo = 'Diario-Lunar-' + mesNome + '-' + ano + '.html';
+
+    // Agrupa entradas por fase (1-4) na ordem dos dias
+    var entradasPorFase = { 1: [], 2: [], 3: [], 4: [] };
+    for (var d = 1; d <= 28; d++) {
+      var en = state.journalData[d] || {};
+      if (!(en.mood || en.intention || en.reflectionAnswer || en.gratitude1 || en.gratitude || en.learning || en.selfCareTomorrow)) continue;
+      var pid = getPhaseByDay(d);
+      entradasPorFase[pid].push({ day: d, e: en });
+    }
+
+    var totalEntradas = entradasPorFase[1].length + entradasPorFase[2].length + entradasPorFase[3].length + entradasPorFase[4].length;
+
+    // Conquistas desbloqueadas
+    var conquistasDesb = getAchievementsState().filter(function(a) { return a.unlocked; });
+
+    function entradaHTML(item) {
+      var e = item.e;
+      var ph = PHASES[getPhaseByDay(item.day)];
+      var bloco = '<article class="entry">' +
+        '<header class="entry-head">' +
+          '<div class="entry-day">Dia ' + item.day + '</div>' +
+          '<div class="entry-phase" style="color:' + ph.hex + '">' + esc(ph.name) + (e.mood ? ' · ' + esc(e.mood) : '') + '</div>' +
+        '</header>';
+      if (e.intention) bloco += '<div class="entry-section"><h4>✨ Intenção</h4><p>' + esc(e.intention) + '</p></div>';
+      if (e.reflectionAnswer) bloco += '<div class="entry-section"><h4>📖 Reflexão</h4><p>' + esc(e.reflectionAnswer).replace(/\n/g,'<br>') + '</p></div>';
+      var grats = [];
+      [1,2,3].forEach(function(n) { if (e['gratitude' + n]) grats.push(e['gratitude' + n]); });
+      if (grats.length) {
+        bloco += '<div class="entry-section"><h4>💜 Gratidão</h4><ul>';
+        grats.forEach(function(g) { bloco += '<li>' + esc(g) + '</li>'; });
+        bloco += '</ul></div>';
+      }
+      if (e.learning) bloco += '<div class="entry-section"><h4>💡 Aprendi sobre mim</h4><p>' + esc(e.learning) + '</p></div>';
+      if (e.selfCareTomorrow) bloco += '<div class="entry-section"><h4>🛡 Cuidado para amanhã</h4><p>' + esc(e.selfCareTomorrow) + '</p></div>';
+      bloco += '</article>';
+      return bloco;
+    }
+
+    var faseHTML = '';
+    [1,2,3,4].forEach(function(pid) {
+      var ph = PHASES[pid];
+      var items = entradasPorFase[pid];
+      if (!items.length) return;
+      faseHTML += '<section class="phase-block" style="border-color:' + ph.hex + '40">' +
+        '<header class="phase-head" style="background:linear-gradient(135deg,' + ph.hex + '15,transparent)">' +
+          '<h2 style="color:' + ph.hex + '">' + esc(ph.name) + '</h2>' +
+          '<p>' + esc(ph.season || '') + ' · ' + items.length + ' registro(s)</p>' +
+        '</header>' +
+        '<div class="phase-entries">' + items.map(entradaHTML).join('') + '</div>' +
+      '</section>';
+    });
+
+    var conquistasHTML = '';
+    if (conquistasDesb.length) {
+      conquistasHTML = '<section class="achievements-block"><h2>🏆 Conquistas desta jornada</h2><div class="achievements-grid">' +
+        conquistasDesb.map(function(a) {
+          return '<div class="ach-card"><div class="ach-emoji">' + a.emoji + '</div><div class="ach-name">' + esc(a.name) + '</div><div class="ach-desc">' + esc(a.desc) + '</div></div>';
+        }).join('') +
+      '</div></section>';
+    }
+
+    var emptyHTML = '';
+    if (totalEntradas === 0) {
+      emptyHTML = '<section class="empty-state"><p>Seu diário ainda está em branco. Comece a registrar e ele florescerá página a página. 🌱</p></section>';
+    }
+
+    var doc = '<!DOCTYPE html><html lang="pt-BR"><head>' +
+      '<meta charset="UTF-8">' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1.0">' +
+      '<title>' + esc(nomeArquivo.replace('.html','')) + '</title>' +
+      '<style>' +
+        '*{box-sizing:border-box;margin:0;padding:0}' +
+        'body{font-family:Georgia,serif;background:#FAF5FF;color:#1C1917;line-height:1.65;padding:0}' +
+        '.cover{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1.5rem;text-align:center;background:linear-gradient(145deg,#170F2E,#26184A);color:#FAF5FF;page-break-after:always}' +
+        '.cover-moon{width:5rem;height:5rem;border-radius:50%;background:radial-gradient(circle at 35% 35%,#C084FC,#7C3AED);box-shadow:0 0 60px rgba(192,132,252,0.45);margin-bottom:1.5rem}' +
+        '.cover h1{font-size:clamp(2rem,6vw,3rem);font-weight:700;letter-spacing:-0.02em;margin-bottom:0.5rem}' +
+        '.cover .subtitle{font-style:italic;color:#C084FC;margin-bottom:2rem;font-size:1.05rem}' +
+        '.cover .meta{font-size:0.85rem;color:#E9D5FF;letter-spacing:0.1em;text-transform:uppercase}' +
+        '.cover .stats{margin-top:2.5rem;display:flex;flex-wrap:wrap;gap:1rem;justify-content:center}' +
+        '.cover .stat{background:rgba(255,255,255,0.06);border:1px solid rgba(192,132,252,0.3);border-radius:1rem;padding:0.875rem 1.25rem;min-width:8rem}' +
+        '.cover .stat-num{font-size:1.75rem;font-weight:700;color:#FAF5FF}' +
+        '.cover .stat-label{font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#C084FC;margin-top:0.25rem}' +
+        '.content{max-width:48rem;margin:0 auto;padding:3rem 1.5rem 5rem}' +
+        '.phase-block{margin-bottom:3rem;border-radius:1.25rem;overflow:hidden;border:2px solid #E7E5E4;background:#fff}' +
+        '.phase-head{padding:1.25rem 1.5rem;border-bottom:1px solid #E7E5E4}' +
+        '.phase-head h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em}' +
+        '.phase-head p{font-size:0.8rem;color:#78716C;text-transform:uppercase;letter-spacing:0.1em;margin-top:0.25rem}' +
+        '.phase-entries{padding:1.5rem}' +
+        '.entry{padding:1.25rem 0;border-bottom:1px solid #F5F5F4}' +
+        '.entry:last-child{border-bottom:none}' +
+        '.entry-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.875rem;flex-wrap:wrap;gap:0.5rem}' +
+        '.entry-day{font-weight:700;font-size:1.125rem;color:#1C1917}' +
+        '.entry-phase{font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em}' +
+        '.entry-section{margin:0.875rem 0}' +
+        '.entry-section h4{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#7C3AED;margin-bottom:0.375rem}' +
+        '.entry-section p{font-size:0.95rem;color:#1C1917}' +
+        '.entry-section ul{list-style:none;padding-left:0}' +
+        '.entry-section li{padding:0.25rem 0;color:#1C1917;font-size:0.95rem}' +
+        '.entry-section li::before{content:"♡ ";color:#D946EF}' +
+        '.achievements-block{margin-top:3rem;padding:2rem;background:linear-gradient(135deg,#FCD34D15,#FAF5FF);border-radius:1.25rem;border:1px solid #E7E5E4}' +
+        '.achievements-block h2{font-size:1.5rem;text-align:center;margin-bottom:1.5rem;color:#1C1917}' +
+        '.achievements-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(10rem,1fr));gap:1rem}' +
+        '.ach-card{background:#fff;border:1px solid #E7E5E4;border-radius:0.875rem;padding:1rem;text-align:center}' +
+        '.ach-emoji{font-size:1.75rem;margin-bottom:0.375rem}' +
+        '.ach-name{font-weight:700;font-size:0.875rem;margin-bottom:0.25rem}' +
+        '.ach-desc{font-size:0.75rem;color:#78716C}' +
+        '.empty-state{text-align:center;padding:4rem 1.5rem;color:#78716C;font-style:italic}' +
+        '.footer{text-align:center;padding:2rem;font-size:0.75rem;color:#78716C;border-top:1px solid #E7E5E4;margin-top:3rem}' +
+        '@media print{.cover{min-height:auto;page-break-after:always}.phase-block{page-break-inside:avoid;border:none}body{background:#fff}}' +
+      '</style></head><body>' +
+        '<section class="cover">' +
+          '<div class="cover-moon"></div>' +
+          '<h1>Diário Lunar</h1>' +
+          '<p class="subtitle">Sua jornada cíclica em palavras</p>' +
+          '<p class="meta">' + esc(mesNome) + ' · ' + ano + '</p>' +
+          '<div class="stats">' +
+            '<div class="stat"><div class="stat-num">' + totalEntradas + '</div><div class="stat-label">Registros</div></div>' +
+            '<div class="stat"><div class="stat-num">' + conquistasDesb.length + '</div><div class="stat-label">Conquistas</div></div>' +
+            '<div class="stat"><div class="stat-num">28</div><div class="stat-label">Dias do ciclo</div></div>' +
+          '</div>' +
+        '</section>' +
+        '<main class="content">' + emptyHTML + faseHTML + conquistasHTML + '</main>' +
+        '<footer class="footer">Diário Lunar · Gerado em ' + esc(now.toLocaleDateString('pt-BR')) + '</footer>' +
+      '</body></html>';
+
+    try {
+      var blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var w = window.open(url, '_blank');
+      if (!w) {
+        // fallback: força download se popup bloqueado
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = nomeArquivo;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      setTimeout(function() { try { URL.revokeObjectURL(url); } catch(e) {} }, 60000);
+      showSuccessToast('Diário gerado em nova aba ✨');
+    } catch(e) {
+      console.error('export full diary failed:', e);
+      showSuccessToast('Erro ao gerar diário');
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
   // SYSTEM DATA
   // ─────────────────────────────────────────────────────────────────────────────
@@ -405,6 +571,136 @@
     27: "Olhando para trás, qual foi a maior lição de sabedoria que colhi nos últimos 20 dias?",
     28: "Estou pronta para sangrar e renovar. O que desejo deixar morrer para renascer amanhã?"
   };
+
+  // ─── BANCO EXPANDIDO DE PROMPTS POR FASE (15 por fase + especiais) ───
+  var PHASE_PROMPTS_BANK = {
+    1: [ // Renovação — Inverno Interior
+      "O que meu corpo está pedindo desesperadamente que eu pare de fazer para poder descansar?",
+      "Qual peso emocional não me serve mais e estou pronta para 'deixar ir' neste ciclo?",
+      "Se eu me tratasse com a mesma gentileza que trato minha melhor amiga, o que diria a mim mesma?",
+      "Quais limites preciso estabelecer hoje para proteger minha bolha de energia?",
+      "O que minha intuição tem sussurrado baixinho que eu tenho ignorado na correria?",
+      "Onde no meu corpo eu sinto cansaço hoje? O que esse lugar quer me dizer?",
+      "Que sonho recorrente tenho tido — e que mensagem ele pode estar trazendo?",
+      "Se eu pudesse passar três dias em silêncio absoluto, o que eu descobriria sobre mim?",
+      "Qual relação está consumindo mais energia do que oferecendo agora?",
+      "O que significa, para mim, descansar sem culpa? Como seria isso na prática?",
+      "Que ciclo emocional sinto que está se fechando dentro de mim?",
+      "Quais palavras minha mãe (ou avó) costumava dizer e que ainda ressoam em mim?",
+      "Se eu honrar meu inverno interno, o que muda na semana que vem?",
+      "Que livro, música ou silêncio preciso hoje para me reconectar?",
+      "Qual história sobre mim mesma estou pronta para reescrever?"
+    ],
+    2: [ // Crescimento — Primavera Interior
+      "Se nada fosse impossível, qual semente (sonho ou projeto) eu gostaria de plantar?",
+      "Qual pequena ação prática posso tomar amanhã para começar a materializar essa intenção?",
+      "Com a energia voltando, qual projeto ou hobby eu gostaria de retomar?",
+      "Se eu desenhasse um mapa para meus objetivos deste mês, qual seria o primeiro marco?",
+      "Minha mente está mais fértil hoje. Quais ideias 'loucas' surgiram?",
+      "Quem são as pessoas que me inspiram e como posso me conectar com elas hoje?",
+      "Sinto minha energia subindo. Em qual tarefa desafiadora posso aplicar esse foco extra?",
+      "Que aprendizado novo me chama agora? Um curso, um livro, uma conversa?",
+      "Qual decisão pequena, tomada hoje, plantará uma grande mudança em 30 dias?",
+      "O que preciso parar de querer ser perfeita para conseguir começar?",
+      "Onde posso plantar amor antes de pedir colheita?",
+      "Que conversa adiada precisa acontecer enquanto minha clareza está alta?",
+      "Como posso celebrar minha progressão hoje, mesmo se o caminho ainda parece longo?",
+      "Que hábito pequeno posso instituir esta semana e manter por 21 dias?",
+      "Se eu fosse a melhor versão de mim em 6 meses, o que ela me agradeceria por ter feito hoje?"
+    ],
+    3: [ // Força — Verão Interior
+      "Sinto meu magnetismo pessoal hoje. Como posso usar essa influência para o bem?",
+      "Qual conversa difícil eu tenho adiado e agora tenho coragem de ter?",
+      "Se eu não tivesse medo de brilhar demais, o que eu faria ou diria hoje?",
+      "Estou no meu ápice de energia. Qual grande decisão precisa do meu 'SIM' definitivo?",
+      "Como posso nutrir minhas conexões mais importantes sem me esgotar?",
+      "Olhando para minhas conquistas recentes, o que merece ser celebrado?",
+      "Minha luz ilumina os outros. Quem precisa do meu apoio ou mentoria agora?",
+      "Em que área da minha vida sinto-me chamada a liderar — mesmo que ainda não tenha o título?",
+      "Que parte de mim está pronta para ocupar mais espaço sem pedir desculpas?",
+      "Qual prazer simples eu posso me permitir hoje, sem precisar 'merecer' antes?",
+      "Que verdade sobre mim mesma só consigo ouvir quando estou nessa potência?",
+      "Quem está se beneficiando do meu silêncio? E vale a pena continuar?",
+      "Como meu corpo gosta de ser visto hoje? Como honro essa beleza?",
+      "Se eu coroasse uma versão minha hoje, qual seria a coroa que me vejo usando?",
+      "Que sonho grande estou minimizando porque tenho medo de querer demais?"
+    ],
+    4: [ // Sabedoria — Outono Interior
+      "Sinto a mudança de estação interna. O que meu corpo pede que eu desacelere?",
+      "Minha crítica interna está alta? Como posso transformar essa voz em conselho sábio?",
+      "O que não funcionou neste ciclo e estou pronta para perdoar e liberar?",
+      "Minha sensibilidade é um superpoder. O que ela está me mostrando sobre meus limites?",
+      "Se eu pudesse me dar um presente de conforto hoje, qual seria?",
+      "Olhando para trás, qual foi a maior lição de sabedoria que colhi nos últimos 20 dias?",
+      "Estou pronta para sangrar e renovar. O que desejo deixar morrer para renascer amanhã?",
+      "Que padrão se repetiu neste ciclo e está me pedindo atenção consciente?",
+      "Quais crenças herdadas posso devolver para quem as plantou em mim?",
+      "Que perdão preciso oferecer — a alguém ou a mim mesma — para fechar esta fase?",
+      "Onde eu disse 'sim' quando queria dizer 'não' este mês? Por quê?",
+      "Que verdade incômoda minha intuição já sabe e minha mente ainda resiste?",
+      "Como posso transformar minha sensibilidade em discernimento, não em sofrimento?",
+      "Se uma anciã sábia me visitasse esta noite, qual conselho ela traria?",
+      "O que estou colhendo agora que plantei sem saber há ciclos atrás?"
+    ]
+  };
+
+  // ─── PROMPTS ESPECIAIS (eventos lunares e marcos do ciclo) ───
+  var SPECIAL_PROMPTS = {
+    lua_nova: [
+      "A lua está vazia e o céu sussurra: o que você quer plantar nas próximas quatro semanas?",
+      "Se a lua nova é tela em branco, qual é a primeira pincelada que sua alma escolhe?",
+      "Que três intenções pequenas, mas honestas, você semeia neste escuro fértil?",
+      "A noite sem lua guarda seus pedidos. O que você confia ao silêncio dela hoje?"
+    ],
+    lua_cheia: [
+      "A lua cheia ilumina o que estava escondido. O que finalmente fica claro para você esta noite?",
+      "No auge do brilho lunar, o que precisa ser celebrado ou reconhecido em você?",
+      "A plenitude da lua chama: o que você está pronta para soltar para fazer espaço?",
+      "Sob a luz cheia, que verdade você não consegue mais ignorar?"
+    ],
+    primeiro_dia: [
+      "Primeiro dia do ciclo. Que versão de mim quero deixar para trás antes de começar?",
+      "O sangrar começa. O que estou liberando junto com o que meu corpo libera?",
+      "Início absoluto. Se eu pudesse honrar uma única coisa hoje, qual seria?",
+      "Dia 1: que mantra escolho como guia para os 28 dias que se desdobram?"
+    ],
+    ultimo_dia: [
+      "Dia 28. Olhando para todo o ciclo: qual é a maior lição que levo comigo?",
+      "Última página deste capítulo lunar. O que registro como vitória — mesmo a invisível?",
+      "Antes de virar a página, que gratidão honesta posso oferecer ao ciclo que se fecha?",
+      "Fim de ciclo. Que parte de mim já não cabe mais e fica para trás com elegância?"
+    ],
+    semanal_profunda: [
+      "Se essa semana fosse uma única palavra honesta, qual seria? Por quê?",
+      "Que padrão aparece em cada um dos meus dias e eu finalmente posso enxergar?",
+      "Onde meu corpo me ensinou algo que minha mente ainda está alcançando?",
+      "Que conversa interna se repete em mim — e o que ela está realmente pedindo?",
+      "Se eu fosse minha própria mentora esta semana, qual seria o conselho mais firme e amoroso?"
+    ],
+    gratidao: [
+      "Que pequeno gesto invisível recebi hoje e mereceria um reconhecimento silencioso?",
+      "Por qual parte de mim — corpo, alma ou caminho — eu me agradeço esta noite?",
+      "Que conquista discreta merece um brinde só meu, mesmo que ninguém saiba?",
+      "Se eu fizesse uma carta de gratidão para quem eu fui há um ano, o que diria?",
+      "O que eu superei e ainda não permitia celebrar? Hoje permito."
+    ]
+  };
+
+  // Retorna prompt aleatório evitando repetidos por 3 ciclos via localStorage
+  function pickPhasePrompt(phaseId, opts) {
+    opts = opts || {};
+    var pool = [];
+    if (opts.special && SPECIAL_PROMPTS[opts.special]) pool = SPECIAL_PROMPTS[opts.special].slice();
+    else pool = (PHASE_PROMPTS_BANK[phaseId] || PHASE_PROMPTS_BANK[1]).slice();
+    var recent = lsGetJSON('recentPrompts') || [];
+    var available = pool.filter(function(p) { return recent.indexOf(p) === -1; });
+    if (!available.length) available = pool.slice();
+    var chosen = available[Math.floor(Math.random() * available.length)];
+    recent.push(chosen);
+    if (recent.length > 8) recent = recent.slice(-8);
+    lsSetJSON('recentPrompts', recent);
+    return chosen;
+  }
 
   var REFLECTION_EXAMPLES = [
     "Hoje percebi que meu corpo está pedindo um ritmo diferente do que minha mente quer impor. Vou tentar me escutar mais.",
@@ -629,6 +925,7 @@
 
   function updateCurrentDay(day) {
     state.currentDay = day;
+    state._customPrompt = null;
     lsSet('currentDay', day.toString());
     var today = new Date().toISOString().split('T')[0];
     lsSet('cycleStartDate', today);
@@ -1377,9 +1674,9 @@
   // ─────────────────────────────────────────────────────────────────────────────
   function renderDaily() {
     var dd = state.journalData[state.currentDay] || {};
-    var prompt = DAILY_PROMPTS[state.currentDay] || 'Como posso honrar minha energia hoje?';
     var phaseId = getPhaseByDay(state.currentDay);
     var phase = PHASES[phaseId];
+    var prompt = state._customPrompt || DAILY_PROMPTS[state.currentDay] || 'Como posso honrar minha energia hoje?';
 
     var labels = { l1: 'Corpo Físico', l2: 'Energia Emocional', intentLabel: '✨ Intenção de hoje', intentHolder: 'Minha intenção é...' };
     if (phaseId === 3) labels = { l1: 'Confiança', l2: 'Energia Social', intentLabel: '🦁 Minha liderança hoje', intentHolder: 'Hoje vou liderar com...' };
@@ -1468,7 +1765,10 @@
         '<p style="font-family:var(--serif);font-size:1.0625rem;color:' + T.ink + ';font-style:italic;margin:0 0 1rem;line-height:1.65">"' + esc(prompt) + '"</p>' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.625rem;flex-wrap:wrap;gap:0.5rem">' +
           '<span style="font-size:0.75rem;color:' + T.faint + '">Deixe fluir livremente</span>' +
-          '<button class="btn btn-sm btn-muted" id="btn-use-example">Usar exemplo</button></div>' +
+          '<div style="display:flex;gap:0.375rem;flex-wrap:wrap">' +
+            '<button class="btn btn-sm btn-ghost" id="btn-swap-prompt" aria-label="Trocar prompt">✨ Trocar prompt</button>' +
+            '<button class="btn btn-sm btn-muted" id="btn-use-example">Usar exemplo</button>' +
+          '</div></div>' +
         '<textarea class="dl-textarea" id="textarea-reflection" style="height:9rem" placeholder="Deixe sua intuição fluir aqui...">' + esc(dd.reflectionAnswer || '') + '</textarea>' +
         '<div style="margin-top:1rem;display:flex;justify-content:flex-end">' +
           '<button class="btn btn-md btn-magic" id="btn-daily-oracle">' + icon('sparkles', 15) + ' Consultar Oráculo</button></div></div>';
@@ -1599,9 +1899,10 @@
         '<div style="display:inline-flex;padding:1.125rem;background:linear-gradient(135deg,' + T.soft + ',' + T.lavender + ');border-radius:50%;margin-bottom:1.125rem">' + icon('star', 36, T.rose) + '</div>' +
         '<h2 class="summary-title">Síntese do Ciclo</h2>' +
         '<p style="color:' + T.faint + ';margin:0 0 1.25rem;font-size:0.9375rem">Honre sua jornada. Celebre sua sabedoria.</p>' +
-        '<div style="display:flex;justify-content:center;gap:0.625rem">' +
+        '<div style="display:flex;justify-content:center;gap:0.625rem;flex-wrap:wrap">' +
           '<button class="btn btn-sm btn-outline" id="btn-export-pdf">' + icon('barChart2', 14) + ' PDF</button>' +
           '<button class="btn btn-sm btn-outline" id="btn-export-image">' + icon('image', 14) + ' Imagem</button>' +
+          '<button class="btn btn-sm btn-outline" id="btn-export-full-diary">' + icon('bookOpen', 14) + ' Diário Completo</button>' +
         '</div></div>';
 
     html += '<div id="printable-summary" style="display:flex;flex-direction:column;gap:1.5rem">';
@@ -1751,14 +2052,36 @@
       resultsHTML = '<p style="color:' + T.faint + ';font-size:0.85rem;text-align:center;padding:1.25rem 0;margin:0">' + ((sq || pf > 0) ? 'Nenhum registro encontrado com esses filtros.' : 'Comece a registrar e seus achados aparecerão aqui.') + '</p>';
     } else {
       filteredEntries.forEach(function(item) {
-        var snippet = item.e.intention || item.e.reflectionAnswer || item.e.gratitude || item.e.learning || '';
-        if (snippet.length > 140) snippet = snippet.slice(0, 140) + '…';
+        // Escolhe o trecho que contém o termo buscado quando possível
+        var fields = [item.e.intention, item.e.reflectionAnswer, item.e.gratitude, item.e.learning];
+        var snippet = '';
+        if (sq) {
+          for (var fi = 0; fi < fields.length; fi++) {
+            var fv = fields[fi] || '';
+            if (fv && fv.toLowerCase().indexOf(sq) !== -1) { snippet = fv; break; }
+          }
+        }
+        if (!snippet) snippet = item.e.intention || item.e.reflectionAnswer || item.e.gratitude || item.e.learning || '';
+        // Janela em torno do match (~140 chars)
+        if (snippet.length > 140) {
+          if (sq) {
+            var idx = snippet.toLowerCase().indexOf(sq);
+            if (idx > 60) {
+              var start = Math.max(0, idx - 50);
+              snippet = (start > 0 ? '…' : '') + snippet.slice(start, start + 140) + (start + 140 < snippet.length ? '…' : '');
+            } else {
+              snippet = snippet.slice(0, 140) + '…';
+            }
+          } else {
+            snippet = snippet.slice(0, 140) + '…';
+          }
+        }
         resultsHTML += '<button type="button" data-search-day="' + item.day + '" style="text-align:left;display:block;width:100%;background:' + T.cream + ';border:1px solid ' + T.borderLt + ';border-left:3px solid ' + item.phase.hex + ';border-radius:0.875rem;padding:0.75rem 0.875rem;cursor:pointer;font-family:var(--sans);min-height:48px;touch-action:manipulation;margin-bottom:0.5rem">' +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem">' +
             '<span style="font-size:0.7rem;font-weight:700;color:' + item.phase.hex + ';text-transform:uppercase;letter-spacing:0.06em">Dia ' + item.day + ' · ' + item.phase.name + '</span>' +
             (item.e.mood ? '<span style="font-size:0.85rem">' + esc(item.e.mood.split(' ')[0]) + '</span>' : '') +
           '</div>' +
-          (snippet ? '<p style="font-size:0.8rem;color:' + T.ink + ';margin:0;line-height:1.45">' + esc(snippet) + '</p>' : '') +
+          (snippet ? '<p style="font-size:0.8rem;color:' + T.ink + ';margin:0;line-height:1.45">' + highlight(snippet, sq) + '</p>' : '') +
         '</button>';
       });
     }
@@ -1950,7 +2273,9 @@
     { id: 'faithful', emoji: '💜', name: 'Fiel ao Ciclo', desc: '3 meses de uso', total: 90 },
     { id: 'stellar', emoji: '⭐', name: 'Guardiã Estelar', desc: '6 meses de uso', total: 180 },
     { id: 'master', emoji: '🏆', name: 'Mestra Lunar', desc: '1 ano de uso', total: 365 },
-    { id: 'yearJournal', emoji: '📜', name: 'Diário de Um Ano', desc: '365 dias com registro', total: 365 }
+    { id: 'yearJournal', emoji: '📜', name: 'Diário de Um Ano', desc: '365 dias com registro', total: 365 },
+    { id: 'deepWriter', emoji: '✍️', name: 'Escritora Profunda', desc: 'Reflexão de 300+ palavras', total: 300 },
+    { id: 'sacredConsistency', emoji: '🔥', name: 'Consistência Sagrada', desc: '7 dias consecutivos', total: 7 }
   ];
 
   function isFullMoonToday() {
@@ -1994,6 +2319,40 @@
     var entryDates = lsGetJSON('entryDates') || {};
     var distinctDays = Object.keys(entryDates).length;
 
+    // Escritora Profunda: maior contagem de palavras numa única reflexão/learning
+    var maxWords = 0;
+    try {
+      Object.keys(state.journalData || {}).forEach(function(k) {
+        var en = state.journalData[k];
+        if (!en || typeof en !== 'object') return;
+        ['reflectionAnswer', 'learning'].forEach(function(field) {
+          var txt = (en[field] || '').trim();
+          if (!txt) return;
+          var w = txt.split(/\s+/).filter(Boolean).length;
+          if (w > maxWords) maxWords = w;
+        });
+      });
+    } catch(e) {}
+
+    // Consistência Sagrada: maior streak de dias consecutivos com registro
+    var maxStreak = 0;
+    try {
+      var dateKeys = Object.keys(entryDates).sort();
+      var current = 0;
+      var prev = null;
+      for (var i = 0; i < dateKeys.length; i++) {
+        var dt = parseLocalDate(dateKeys[i]);
+        if (prev) {
+          var diff = Math.round((dt.getTime() - prev.getTime()) / 86400000);
+          current = (diff === 1) ? current + 1 : 1;
+        } else {
+          current = 1;
+        }
+        if (current > maxStreak) maxStreak = current;
+        prev = dt;
+      }
+    } catch(e) {}
+
     var progressMap = {
       firstSeed: { current: Math.min(1, count), unlocked: count >= 1 },
       sevenNights: { current: Math.min(7, count), unlocked: count >= 7 },
@@ -2007,7 +2366,9 @@
       faithful: { current: Math.min(90, daysSinceFirst), unlocked: daysSinceFirst >= 90 },
       stellar: { current: Math.min(180, daysSinceFirst), unlocked: daysSinceFirst >= 180 },
       master: { current: Math.min(365, daysSinceFirst), unlocked: daysSinceFirst >= 365 },
-      yearJournal: { current: Math.min(365, distinctDays), unlocked: distinctDays >= 365 }
+      yearJournal: { current: Math.min(365, distinctDays), unlocked: distinctDays >= 365 },
+      deepWriter: { current: Math.min(300, maxWords), unlocked: maxWords >= 300 },
+      sacredConsistency: { current: Math.min(7, maxStreak), unlocked: maxStreak >= 7 }
     };
     return ACHIEVEMENTS.map(function(a) {
       var p = progressMap[a.id] || { current: 0, unlocked: false };
@@ -2404,6 +2765,11 @@
       Timer.remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
       var el = document.getElementById('timer-display');
       if (el) el.textContent = _formatTime(Timer.remaining);
+      var ring = document.getElementById('timer-ring-progress');
+      if (ring && Timer.durationSec > 0) {
+        var pct = Timer.remaining / Timer.durationSec;
+        ring.setAttribute('stroke-dashoffset', String(628.32 * (1 - pct)));
+      }
       if (Timer.remaining <= 0) finishTimer(false);
     }, 250);
     var btn = document.getElementById('btn-timer-toggle');
@@ -2433,6 +2799,8 @@
     }
     var el = document.getElementById('timer-display');
     if (el) el.textContent = _formatTime(Timer.durationSec);
+    var ring = document.getElementById('timer-ring-progress');
+    if (ring) ring.setAttribute('stroke-dashoffset', '0');
     var btn = document.getElementById('btn-timer-toggle');
     if (btn) btn.textContent = 'Iniciar';
     if (!byUser) {
@@ -2455,8 +2823,14 @@
       '</header>' +
 
       '<div style="background:' + T.surface + ';border:1px solid ' + T.border + ';border-radius:1.5rem;padding:1.5rem;text-align:center">' +
-        '<div id="timer-display" style="font-family:var(--serif);font-size:3.25rem;color:' + T.ink + ';font-weight:700;letter-spacing:0.04em;margin-bottom:1rem">' + _formatTime(initial) + '</div>' +
-        '<div style="display:flex;gap:0.625rem;justify-content:center">' +
+        '<div id="timer-ring-wrap" style="position:relative;width:14rem;height:14rem;max-width:60vw;max-height:60vw;margin:0 auto 1rem">' +
+          '<svg width="100%" height="100%" viewBox="0 0 240 240" style="transform:rotate(-90deg);display:block" aria-hidden="true">' +
+            '<circle cx="120" cy="120" r="100" fill="none" stroke="' + T.borderLt + '" stroke-width="8"></circle>' +
+            '<circle id="timer-ring-progress" cx="120" cy="120" r="100" fill="none" stroke="' + T.rose + '" stroke-width="8" stroke-linecap="round" stroke-dasharray="628.32" stroke-dashoffset="0" style="transition:stroke-dashoffset 0.3s linear"></circle>' +
+          '</svg>' +
+          '<div id="timer-display" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:clamp(2rem,7vw,2.75rem);color:' + T.ink + ';font-weight:700;letter-spacing:0.02em">' + _formatTime(initial) + '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:0.625rem;justify-content:center;flex-wrap:wrap">' +
           '<button type="button" id="btn-timer-toggle" class="btn btn-md btn-primary" style="min-width:8rem">' + (Timer.running ? 'Pausar' : 'Iniciar') + '</button>' +
           '<button type="button" id="btn-timer-stop" class="btn btn-md btn-outline">Parar</button>' +
         '</div>' +
@@ -2744,6 +3118,25 @@
           render();
         };
 
+        var btnSwapPrompt = document.getElementById('btn-swap-prompt');
+        if (btnSwapPrompt) btnSwapPrompt.onclick = function() {
+          try {
+            var pid = getPhaseByDay(state.currentDay);
+            var opts = {};
+            if (state.currentDay === 1) opts.special = 'primeiro_dia';
+            else if (state.currentDay === 28) opts.special = 'ultimo_dia';
+            else {
+              var lk = getLunarPhaseKey();
+              if (lk === 'new') opts.special = 'lua_nova';
+              else if (lk === 'full') opts.special = 'lua_cheia';
+            }
+            // 30% chance de ignorar especial e voltar para banco da fase
+            if (opts.special && Math.random() < 0.3) opts = {};
+            state._customPrompt = pickPhasePrompt(pid, opts);
+            render();
+          } catch(e) { console.warn('swap prompt failed (safe):', e && e.message); }
+        };
+
         document.querySelectorAll('[data-gratitude]').forEach(function(input) {
           var n = input.getAttribute('data-gratitude');
           var saveGratitude = makeDebouncer(function() {
@@ -2951,6 +3344,21 @@
           }
         });
       };
+
+      var btnFullDiary = document.getElementById('btn-export-full-diary');
+      if (btnFullDiary) btnFullDiary.onclick = function() {
+        showConfirmModal({
+          iconEmoji: '📖',
+          title: 'Exportar Diário Completo',
+          desc: 'Gera uma página elegante com capa, todas as entradas organizadas por fase, gratidões, aprendizados e conquistas. Abre em nova aba para você imprimir, salvar como PDF do navegador ou guardar.',
+          ctaText: 'Gerar Diário',
+          cancelText: 'Cancelar',
+          onConfirm: function() {
+            try { renderFullDiaryHTML(); }
+            catch(e) { console.error('full diary export failed:', e); showSuccessToast('Erro ao gerar diário — tente novamente'); }
+          }
+        });
+      };
     }
 
     // Mandala clicks
@@ -2961,6 +3369,46 @@
         setView('daily');
       };
     });
+
+    // ─── MICRO-INTERAÇÕES ───
+    // Ripple em botões .btn (toque/click)
+    try {
+      document.querySelectorAll('.btn').forEach(function(b) {
+        if (b._rippleBound) return;
+        b._rippleBound = true;
+        var trigger = function() {
+          b.classList.add('is-rippling');
+          setTimeout(function() { b.classList.remove('is-rippling'); }, 350);
+        };
+        b.addEventListener('click', trigger, { passive: true });
+      });
+    } catch(e) {}
+
+    // IntersectionObserver fade-in para cards (apenas se disponível)
+    try {
+      if ('IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function(entries) {
+          entries.forEach(function(en) {
+            if (en.isIntersecting) {
+              en.target.classList.add('is-visible');
+              io.unobserve(en.target);
+            }
+          });
+        }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+        document.querySelectorAll('.card-responsive').forEach(function(c) {
+          if (c._fadeBound) return;
+          c._fadeBound = true;
+          c.classList.add('fade-in-up');
+          io.observe(c);
+        });
+      }
+    } catch(e) {}
+
+    // Adiciona pulse 3s no ícone da lua do header se houver
+    try {
+      var moonEl = document.querySelector('[data-moon-pulse]');
+      if (moonEl) moonEl.classList.add('moon-pulse');
+    } catch(e) {}
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
