@@ -2699,7 +2699,16 @@
 
   function _loadTimerPref() {
     try {
-      var v = lsGet('diariolunar_timer_preferencia');
+      var v = lsGet('timer_preferencia');
+      // Migração da chave antiga com prefixo duplo (diariolunar_diariolunar_timer_preferencia)
+      if (!v) {
+        var legacy = lsGet('diariolunar_timer_preferencia');
+        if (legacy) {
+          lsSet('timer_preferencia', legacy);
+          lsRemove('diariolunar_timer_preferencia');
+          v = legacy;
+        }
+      }
       if (!v) return;
       var p = JSON.parse(v);
       if (p && typeof p.durationSec === 'number' && p.durationSec > 0) Timer.durationSec = p.durationSec;
@@ -2709,7 +2718,7 @@
   }
   function _saveTimerPref() {
     try {
-      lsSet('diariolunar_timer_preferencia', JSON.stringify({
+      lsSet('timer_preferencia', JSON.stringify({
         durationSec: Timer.durationSec,
         customH: Timer.customH,
         customM: Timer.customM
