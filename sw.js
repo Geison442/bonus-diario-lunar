@@ -1,7 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════
 // Diário Lunar — Service Worker (Stale-While-Revalidate)
 // ═══════════════════════════════════════════════════════════════════
-const CACHE_NAME = 'diariolunar-v8';
+const CACHE_NAME = 'diariolunar-v9';
+const FONTS_CACHE = 'diariolunar-fonts-v1';
 const OFFLINE_URL = './offline.html';
 
 const PRECACHE_URLS = [
@@ -31,7 +32,11 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter(k => k !== CACHE_NAME && k !== FONTS_CACHE)
+          .map(k => caches.delete(k))
+      )
     )
   );
   self.clients.claim();
@@ -40,6 +45,28 @@ self.addEventListener('activate', event => {
 // ─── FETCH: Stale-While-Revalidate ───
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+
+  const url = event.request.url;
+
+  // Google Fonts — Cache-first dedicado (essencial para offline real)
+  if (url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com')) {
+    event.respondWith(
+      caches.open(FONTS_CACHE).then(cache =>
+        cache.match(event.request).then(cached => {
+          const fetchPromise = fetch(event.request)
+            .then(response => {
+              if (response && (response.status === 200 || response.type === 'opaque')) {
+                cache.put(event.request, response.clone());
+              }
+              return response;
+            })
+            .catch(() => cached);
+          return cached || fetchPromise;
+        })
+      )
+    );
+    return;
+  }
 
   // Navigation requests — network first, fallback to cache, then offline page
   if (event.request.mode === 'navigate') {

@@ -743,16 +743,16 @@
     },
     'petala-branca': {
       label: 'Pétala Branca', emoji: '🌸', sub: 'leveza e clareza diurna',
-      primary: '#7C3AED', primaryDk: '#6D28D9',
-      rose: '#7C3AED', roseDk: '#6D28D9',
-      ink: '#1C1917', warm: '#44403C',
-      muted: '#7C3AED', faint: '#78716C',
+      primary: '#6D28D9', primaryDk: '#5B21B6',
+      rose: '#6D28D9', roseDk: '#5B21B6',
+      ink: '#1C1917', warm: '#292524',
+      muted: '#6D28D9', faint: '#57534E',
       bg: '#FDF4FF', surface: '#FFFFFF',
       cream: '#FAE8FF', parchment: '#F5D0FE',
-      soft: '#E9D5FF', lavender: '#C084FC',
-      border: 'rgba(124,58,237,0.22)', borderLt: 'rgba(124,58,237,0.10)',
+      soft: '#E9D5FF', lavender: '#A855F7',
+      border: 'rgba(109,40,217,0.32)', borderLt: 'rgba(109,40,217,0.16)',
       white: '#FFFFFF',
-      gold: '#D97706', purple: '#A855F7'
+      gold: '#B45309', purple: '#7E22CE'
     },
     'magia-dourada': {
       label: 'Magia Dourada', emoji: '🌟', sub: 'âmbar sagrado e mistério',
@@ -1387,6 +1387,7 @@
         '</button>' +
         desktopNav +
         '<div style="display:flex;align-items:center;gap:0.5rem">' +
+          '<button type="button" id="header-achievements-btn" aria-label="Ver conquistas" title="Conquistas" style="background:' + T.parchment + ';border:1px solid ' + T.border + ';border-radius:50%;width:2.25rem;height:2.25rem;min-width:2.25rem;display:flex;align-items:center;justify-content:center;cursor:pointer;color:' + T.muted + ';font-size:1rem;touch-action:manipulation;flex-shrink:0">🏆</button>' +
           '<button type="button" id="header-theme-btn" aria-label="Trocar tema" title="Trocar tema" style="background:' + T.parchment + ';border:1px solid ' + T.border + ';border-radius:50%;width:2.25rem;height:2.25rem;min-width:2.25rem;display:flex;align-items:center;justify-content:center;cursor:pointer;color:' + T.muted + ';font-size:1rem;touch-action:manipulation;flex-shrink:0">🎨</button>' +
           '<div style="text-align:right">' +
             '<p style="font-size:0.8125rem;font-weight:700;color:' + T.ink + ';margin:0;font-variant-numeric:tabular-nums"><span id="live-clock">--:--</span></p>' +
@@ -2852,16 +2853,16 @@
 
       '<div style="background:' + T.cream + ';border:1px solid ' + T.borderLt + ';border-radius:1.25rem;padding:1rem">' +
         '<p style="font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:' + T.muted + ';margin:0 0 0.625rem">Personalizado (até 12h)</p>' +
-        '<div style="display:flex;gap:0.625rem;align-items:center">' +
-          '<label style="flex:1;display:flex;flex-direction:column;gap:0.25rem">' +
+        '<div style="display:flex;gap:0.5rem;align-items:flex-end;flex-wrap:wrap">' +
+          '<label style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:0.25rem">' +
             '<span style="font-size:0.7rem;color:' + T.faint + '">Horas</span>' +
-            '<input type="number" id="timer-h" min="0" inputmode="numeric" value="' + Timer.customH + '" style="padding:0.625rem;border-radius:0.75rem;border:1px solid ' + T.border + ';background:' + T.surface + ';color:' + T.ink + ';font-size:1rem;font-family:var(--sans);text-align:center;min-height:44px">' +
+            '<input type="number" id="timer-h" min="0" inputmode="numeric" value="' + Timer.customH + '" style="width:100%;max-width:100%;padding:0.625rem 0.5rem;border-radius:0.75rem;border:1px solid ' + T.border + ';background:' + T.surface + ';color:' + T.ink + ';font-size:1rem;font-family:var(--sans);text-align:center;min-height:44px;box-sizing:border-box">' +
           '</label>' +
-          '<label style="flex:1;display:flex;flex-direction:column;gap:0.25rem">' +
+          '<label style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:0.25rem">' +
             '<span style="font-size:0.7rem;color:' + T.faint + '">Minutos</span>' +
-            '<input type="number" id="timer-m" min="0" inputmode="numeric" value="' + Timer.customM + '" style="padding:0.625rem;border-radius:0.75rem;border:1px solid ' + T.border + ';background:' + T.surface + ';color:' + T.ink + ';font-size:1rem;font-family:var(--sans);text-align:center;min-height:44px">' +
+            '<input type="number" id="timer-m" min="0" inputmode="numeric" value="' + Timer.customM + '" style="width:100%;max-width:100%;padding:0.625rem 0.5rem;border-radius:0.75rem;border:1px solid ' + T.border + ';background:' + T.surface + ';color:' + T.ink + ';font-size:1rem;font-family:var(--sans);text-align:center;min-height:44px;box-sizing:border-box">' +
           '</label>' +
-          '<button type="button" id="btn-timer-custom" class="btn btn-md btn-outline" style="margin-top:1.125rem">OK</button>' +
+          '<button type="button" id="btn-timer-custom" class="btn btn-md btn-outline" style="flex:0 0 auto;align-self:flex-end">OK</button>' +
         '</div>' +
         '<p style="font-size:0.7rem;color:' + T.faint + ';margin:0.5rem 0 0">Limite máximo: 12 horas (720 min)</p>' +
       '</div>' +
@@ -3043,6 +3044,10 @@
     // Botão tema na barra superior
     var headerTheme = document.getElementById('header-theme-btn');
     if (headerTheme) headerTheme.onclick = function() { showThemeModal(); };
+
+    // Botão conquistas na barra superior
+    var headerAch = document.getElementById('header-achievements-btn');
+    if (headerAch) headerAch.onclick = function() { showAchievementsModal(); };
 
     // Phase start buttons
     document.querySelectorAll('[data-phase-start]').forEach(function(btn) {
