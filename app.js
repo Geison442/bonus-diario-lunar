@@ -399,7 +399,7 @@
       '<title>' + esc(nomeArquivo.replace('.html','')) + '</title>' +
       '<style>' +
         '*{box-sizing:border-box;margin:0;padding:0}' +
-        'body{font-family:Georgia,serif;background:#FAF5FF;color:#1C1917;line-height:1.65;padding:0}' +
+        'body{font-family:system-ui,-apple-system,sans-serif;background:#FAF5FF;color:#1C1917;line-height:1.65;padding:2.5rem 40px}' +
         '.cover{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1.5rem;text-align:center;background:linear-gradient(145deg,#170F2E,#26184A);color:#FAF5FF;page-break-after:always}' +
         '.cover-moon{width:5rem;height:5rem;border-radius:50%;background:radial-gradient(circle at 35% 35%,#C084FC,#7C3AED);box-shadow:0 0 60px rgba(192,132,252,0.45);margin-bottom:1.5rem}' +
         '.cover h1{font-size:clamp(2rem,6vw,3rem);font-weight:700;letter-spacing:-0.02em;margin-bottom:0.5rem}' +
@@ -790,7 +790,11 @@
       '--white': theme.ink, '--gold': theme.gold, '--purple': theme.purple
     };
     Object.keys(cssMap).forEach(function(k) { root.style.setProperty(k, cssMap[k]); });
-    if (document.body) document.body.style.background = theme.bg;
+    root.setAttribute('data-theme', id);
+    if (document.body) {
+      document.body.style.background = theme.bg;
+      document.body.setAttribute('data-theme', id);
+    }
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', theme.bg);
     state.theme = id;
@@ -2758,11 +2762,13 @@
 
   function startTimer() {
     if (Timer.running || Timer.durationSec <= 0) return;
-    Timer.remaining = Timer.durationSec;
+    // Se não há tempo restante (início) ou está zerado, reinicia do total
+    var isResume = Timer.remaining > 0 && Timer.remaining < Timer.durationSec;
+    if (!isResume) Timer.remaining = Timer.durationSec;
     Timer.running = true;
     if (window.AudioManager) {
       try {
-        AudioManager.playEntryBell();
+        if (!isResume) AudioManager.playEntryBell();
         // Atmosfera sutil baseada na fase do ciclo atual
         var phaseId = getPhaseByDay(state.currentDay);
         AudioManager.startCyclePhaseAmbience(phaseId);
@@ -2791,6 +2797,10 @@
     Timer.running = false;
     if (Timer.intervalId) { clearInterval(Timer.intervalId); Timer.intervalId = null; }
     _releaseWakeLock();
+    // Para o áudio ao pausar
+    if (window.AudioManager) {
+      try { AudioManager.stopCyclePhaseAmbience(); } catch(e) {}
+    }
     var btn = document.getElementById('btn-timer-toggle');
     if (btn) btn.textContent = 'Continuar';
   }

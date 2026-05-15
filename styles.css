@@ -132,9 +132,10 @@ select {
 #offline-toast {
   display: none; position: fixed; top: calc(1rem + env(safe-area-inset-top, 0px));
   left: 50%; transform: translateX(-50%); z-index: 10000;
-  background: var(--ink); color: #fff; padding: 0.625rem 1.25rem;
-  border-radius: 9999px; font-size: 0.8rem; font-weight: 600;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.18); animation: fadeInDown 0.4s ease;
+  background: #1C1917; color: #FAF5FF; padding: 16px 24px;
+  border-radius: 12px; font-size: 0.8rem; font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35); animation: fadeInDown 0.4s ease;
+  white-space: nowrap;
 }
 #offline-toast.show { display: flex; align-items: center; gap: 0.5rem; }
 
