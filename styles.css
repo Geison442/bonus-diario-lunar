@@ -47,6 +47,20 @@ body, html {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 h1, h2, h3, h4, .summary-title, [class*="serif"] { letter-spacing: -0.02em; }
+
+/* ─── ANTI-OVERFLOW GLOBAL (375px safe) ─── */
+h1, h2, h3, h4 {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+.card-responsive, .oracle-modal-card, .tutorial-modal, .save-toast {
+  max-width: 100%;
+}
+/* Garante que nenhum elemento ultrapassa a largura da tela */
+img, video, iframe, table {
+  max-width: 100%;
+}
 input, textarea, select { transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease; }
 #app { min-height: 100vh; }
 * { -webkit-tap-highlight-color: transparent; }
@@ -135,7 +149,7 @@ select {
   background: #1C1917; color: #FAF5FF; padding: 16px 24px;
   border-radius: 12px; font-size: 0.8rem; font-weight: 600;
   box-shadow: 0 8px 24px rgba(0,0,0,0.35); animation: fadeInDown 0.4s ease;
-  white-space: nowrap;
+  white-space: normal; max-width: calc(100vw - 2rem); word-break: break-word;
 }
 #offline-toast.show { display: flex; align-items: center; gap: 0.5rem; }
 
@@ -218,7 +232,7 @@ select {
 .timeline-dot:focus-visible { box-shadow: 0 0 0 3px rgba(192,132,252,0.6) !important; }
 
 /* ─── PHASE BTN LABEL ─── */
-.phase-btn-label { font-weight: 700; font-size: 0.8125rem; margin: 0 0 0.125rem; }
+.phase-btn-label { font-weight: 700; font-size: 0.8125rem; margin: 0 0 0.125rem; word-break: break-word; overflow-wrap: break-word; }
 @media (max-width: 380px) { .phase-btn-label { font-size: 0.7rem; } }
 
 /* ─── HEADER ─── */
@@ -452,6 +466,7 @@ input[type="date"].dl-input::-webkit-calendar-picker-indicator {
   font-family: var(--serif); font-size: 1.0625rem; color: var(--ink);
   margin: 0 0 1.25rem; display: flex; align-items: center; gap: 0.5rem;
   border-bottom: 1px solid var(--border-lt); padding-bottom: 0.75rem;
+  word-break: break-word; overflow-wrap: break-word; flex-wrap: wrap;
 }
 
 /* ─── TAG (pill) ─── */
