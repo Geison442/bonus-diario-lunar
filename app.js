@@ -7,7 +7,15 @@
   // ─── STORAGE PREFIX ───
   var PREFIX = 'diariolunar_';
   function lsGet(key) { try { return localStorage.getItem(PREFIX + key); } catch(e) { return null; } }
-  function lsSet(key, val) { try { localStorage.setItem(PREFIX + key, val); } catch(e) {} }
+  function lsSet(key, val) {
+    try {
+      localStorage.setItem(PREFIX + key, val);
+    } catch(e) {
+      if (e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014)) {
+        try { showSuccessToast('⚠️ Armazenamento cheio — limpe dados do navegador'); } catch(te) {}
+      }
+    }
+  }
   function lsRemove(key) { try { localStorage.removeItem(PREFIX + key); } catch(e) {} }
   function lsGetJSON(key) { try { var v = lsGet(key); return v ? JSON.parse(v) : null; } catch(e) { return null; } }
   function lsSetJSON(key, val) { lsSet(key, JSON.stringify(val)); }
@@ -940,6 +948,10 @@
   function _pushScreenState(name) {
     try {
       if (history.state && history.state.view === name) return;
+      if (window.location.hash === '#' + name) {
+        history.replaceState({ view: name }, '', '#' + name);
+        return;
+      }
       history.pushState({ view: name }, '', '#' + name);
     } catch(e) {}
   }
@@ -1082,11 +1094,12 @@
         } catch(e) {}
       });
 
-      // App fechando — encerra tudo
+      // App fechando — encerra tudo e fecha AudioContext
       window.addEventListener('pagehide', function() {
         try { self.stopEverything(); } catch(e) {}
         if (window.AudioManager) {
           try { AudioManager.stopEverything(); } catch(e) {}
+          try { AudioManager.closeContext(); } catch(e) {}
         }
       });
 
@@ -2153,7 +2166,7 @@
   }
 
   function closeOracleModal() {
-    if (state.oracleAbort) state.oracleAbort.abort();
+    if (state.oracleAbort) { state.oracleAbort.abort(); state.oracleAbort = null; }
     var el = document.getElementById('oracle-modal');
     if (el) { el.innerHTML = ''; el.classList.add('hidden'); }
   }
@@ -3100,13 +3113,18 @@
         };
       });
 
+      // Captura o dia no momento que os listeners são instalados — garante que debounces
+      // pendentes (disparados após trocar de dia) salvem no dia correto e não contaminem
+      // o journalData do novo dia (bug: state.currentDay mudava antes do timer disparar).
+      var _dailyDay = state.currentDay;
+
       // Sliders — sliders devem salvar imediatamente (UX espera resposta instantânea no thumb)
       document.querySelectorAll('[data-slider]').forEach(function(input) {
         var key = input.getAttribute('data-slider');
         var display = input.parentElement.querySelector('span[style*="font-family:var(--serif)"]');
         var debouncedSave = makeDebouncer(function(val) {
           var obj = {}; obj[key] = val;
-          saveData(state.currentDay, obj);
+          saveData(_dailyDay, obj);
         }, 250);
         input.oninput = function() {
           if (display) display.textContent = input.value;
@@ -3118,7 +3136,7 @@
       var inputIntention = document.getElementById('input-intention');
       if (inputIntention) {
         var saveIntention = makeDebouncer(function() {
-          saveData(state.currentDay, { intention: inputIntention.value });
+          saveData(_dailyDay, { intention: inputIntention.value });
           showFieldSaveFeedback(inputIntention);
         }, 800);
         inputIntention.oninput = saveIntention;
@@ -3129,7 +3147,7 @@
         var textReflection = document.getElementById('textarea-reflection');
         if (textReflection) {
           var saveReflection = makeDebouncer(function() {
-            saveData(state.currentDay, { reflectionAnswer: textReflection.value });
+            saveData(_dailyDay, { reflectionAnswer: textReflection.value });
             showFieldSaveFeedback(textReflection);
           }, 800);
           textReflection.oninput = saveReflection;
@@ -3165,7 +3183,7 @@
           var n = input.getAttribute('data-gratitude');
           var saveGratitude = makeDebouncer(function() {
             var obj = {}; obj['gratitude' + n] = input.value;
-            saveData(state.currentDay, obj);
+            saveData(_dailyDay, obj);
             showFieldSaveFeedback(input);
           }, 800);
           input.oninput = saveGratitude;
@@ -3174,7 +3192,7 @@
         var textLearning = document.getElementById('textarea-learning');
         if (textLearning) {
           var saveLearning = makeDebouncer(function() {
-            saveData(state.currentDay, { learning: textLearning.value });
+            saveData(_dailyDay, { learning: textLearning.value });
             showFieldSaveFeedback(textLearning);
           }, 800);
           textLearning.oninput = saveLearning;
@@ -3183,7 +3201,7 @@
         var inputSelfcare = document.getElementById('input-selfcare');
         if (inputSelfcare) {
           var saveSelfcare = makeDebouncer(function() {
-            saveData(state.currentDay, { selfCareTomorrow: inputSelfcare.value });
+            saveData(_dailyDay, { selfCareTomorrow: inputSelfcare.value });
             showFieldSaveFeedback(inputSelfcare);
           }, 800);
           inputSelfcare.oninput = saveSelfcare;

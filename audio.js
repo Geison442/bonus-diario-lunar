@@ -116,11 +116,18 @@
       entry.gain.gain.setValueAtTime(entry.gain.gain.value, now);
       entry.gain.gain.linearRampToValueAtTime(0, now + fade);
     } catch (e) {}
-    var stopAt = now + fade + 0.02;
     setTimeout(function () {
       try { entry.src.stop(); } catch (e) {}
       try { entry.src.disconnect(); } catch (e) {}
       try { entry.gain.disconnect(); } catch (e) {}
+      // Limpa LFO de tons contínuos (evita acúmulo de oscillators)
+      if (entry.lfo) {
+        try { entry.lfo.stop(); } catch (e) {}
+        try { entry.lfo.disconnect(); } catch (e) {}
+      }
+      if (entry.lfoGain) {
+        try { entry.lfoGain.disconnect(); } catch (e) {}
+      }
       delete _activeSources[id];
     }, (fade * 1000) + 30);
   }
@@ -291,6 +298,19 @@
     return nodes;
   }
 
+  function _stopSoundscapeNodes(key) {
+    var nodes = _ssOscs[key];
+    if (nodes && nodes.parts) {
+      nodes.parts.forEach(function(n) {
+        if (n && typeof n.stop === 'function') { try { n.stop(); } catch(e) {} }
+        try { n.disconnect(); } catch(e) {}
+      });
+    }
+    if (_ssGains[key]) { try { _ssGains[key].disconnect(); } catch(e) {} }
+    delete _ssGains[key];
+    delete _ssOscs[key];
+  }
+
   function _setSsVolume(key, vol, fadeMs) {
     var c = _ensureCtx(); if (!c) return;
     if (!_ssGains[key]) {
@@ -305,6 +325,11 @@
     g.cancelScheduledValues(now);
     g.setValueAtTime(g.value, now);
     g.linearRampToValueAtTime(Math.max(0, Math.min(1, vol)), now + fade);
+    // Para volume zero: encerra os nós após o fade para evitar acúmulo de oscillators
+    if (vol <= 0) {
+      var cleanupDelay = Math.round(fade * 1000) + 120;
+      setTimeout(function() { _stopSoundscapeNodes(key); }, cleanupDelay);
+    }
   }
 
   // ===== API pública =====
@@ -471,6 +496,18 @@
     AudioManager.stopCyclePhaseAmbience();
     AudioManager.stopSoundscapes();
     AudioManager.stopAll(0.3);
+  };
+
+  // Fecha o AudioContext (chamar apenas em pagehide — sem possibilidade de retorno)
+  AudioManager.closeContext = function () {
+    if (ctx) {
+      try { ctx.close(); } catch(e) {}
+      ctx = null;
+      masterGain = null;
+      _unlocked = false;
+      _ready = false;
+      window._dlAudioReady = false;
+    }
   };
 
   window.AudioManager = AudioManager;
