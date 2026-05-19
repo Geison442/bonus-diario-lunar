@@ -198,7 +198,8 @@ select {
 .guide-card-inner { display: flex; gap: 2rem; flex-wrap: wrap; }
 @media (max-width: 600px) {
   .guide-card-inner { gap: 1rem; }
-  .guide-card-inner > *:first-child { min-width: auto !important; width: 100%; flex-direction: row !important; align-items: center; padding-top: 0 !important; }
+  .guide-card-inner > *:first-child { min-width: auto !important; width: 100%; padding-top: 0 !important; flex-direction: column !important; align-items: center; }
+  .guide-card-inner > *:last-child { min-width: 0 !important; width: 100%; }
 }
 
 /* ─── MOOD GRID ─── */
@@ -238,7 +239,7 @@ select {
 /* ─── HEADER ─── */
 .app-header {
   position: fixed; top: 0; left: 0; right: 0;
-  background: rgba(23,15,46,0.96);
+  background: var(--bg);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border); z-index: 50;
   box-shadow: 0 1px 8px rgba(0,0,0,0.04);
@@ -274,7 +275,7 @@ select {
 /* ─── BOTTOM TAB BAR ─── */
 .bottom-tab-bar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
-  background: rgba(38,24,74,0.97);
+  background: var(--surface);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -477,7 +478,7 @@ input[type="date"].dl-input::-webkit-calendar-picker-indicator {
   font-weight: 600;
   display: inline-block;
   line-height: 1.4;
-  border: 1px solid rgba(192,132,252,0.4);
+  border: 1px solid var(--border);
 }
 
 /* ─── HIDDEN UTILITY ─── */

@@ -268,44 +268,87 @@
     } catch(e) { return 'new'; }
   }
 
-  function generateLocalInsight() {
-    // Coerência por janela de 4h: insight muda ao longo do dia conforme hora
+  function _parseOracleCtx(s) {
+    var ctx = {}, m;
+    if (!s) return ctx;
+    m = s.match(/F.sico:(\d+)/); if (m) ctx.physical = parseInt(m[1]);
+    m = s.match(/Emocional:(\d+)/); if (m) ctx.emotional = parseInt(m[1]);
+    m = s.match(/Humor:"([^"?][^"]*)"/); if (m) ctx.mood = m[1].trim();
+    m = s.match(/Inten[^:]+:"([^"?][^"]*)"/); if (m) ctx.intention = m[1].trim().slice(0, 45);
+    m = s.match(/Reflex[^:]+:"([^"s][^"]*)"/); if (m && m[1] !== 'silêncio') ctx.reflection = m[1].trim().slice(0, 55);
+    m = s.match(/Energia:"([^"v][^"]*)"/); if (m && m[1] !== 'vazio') ctx.weekEnergy = m[1].trim().slice(0, 45);
+    m = s.match(/Funcionou:"([^"v][^"]*)"/); if (m && m[1] !== 'vazio') ctx.worked = m[1].trim().slice(0, 45);
+    m = s.match(/Ajustar:"([^"v][^"]*)"/); if (m && m[1] !== 'vazio') ctx.adjust = m[1].trim().slice(0, 45);
+    return ctx;
+  }
+
+  function _personalSuffix(ctx) {
+    if (ctx.intention && ctx.intention.length > 3) {
+      return ' Sua intenção — “' + ctx.intention + '” — já ecoa no campo: o universo ouviu.';
+    }
+    if (ctx.mood && ctx.mood.length > 1) {
+      var spIdx = ctx.mood.indexOf(' ');
+      var mn = spIdx > 0 ? ctx.mood.slice(spIdx + 1).trim() : ctx.mood.trim();
+      if (mn.length > 1) return ' Estar ' + mn.toLowerCase() + ' hoje é dado do seu ciclo: receba sem julgamento.';
+    }
+    if (typeof ctx.physical === 'number' && ctx.physical <= 3) {
+      return ' Com corpo em ' + ctx.physical + '/10, o repouso de hoje é a sua maior prática.';
+    }
+    if (typeof ctx.emotional === 'number' && ctx.emotional <= 3) {
+      return ' Emoções pesadas pedem acolhimento, não resolução — sinta sem pressa de entender.';
+    }
+    if (typeof ctx.physical === 'number' && typeof ctx.emotional === 'number' && ctx.physical >= 8 && ctx.emotional >= 8) {
+      return ' Alta energia em corpo e coração: use essa janela rara para criar algo que importa.';
+    }
+    if (ctx.worked && ctx.worked.length > 3) {
+      return ' O que funcionou — “' + ctx.worked + '” — é padrão a cultivar no próximo ciclo.';
+    }
+    if (ctx.weekEnergy && ctx.weekEnergy.length > 3) {
+      return ' Com a energia que você descreveu, um passo consciente já é transformação.';
+    }
+    return '';
+  }
+
+  function generateLocalInsight(rawPrompt) {
+    var ctx = _parseOracleCtx(rawPrompt || '');
+    // Coerência por janela de 4h: insight base muda ao longo do dia conforme hora
     var bucket = _getHourBucket();
     var todayKey = new Date().toISOString().split('T')[0];
     var bucketKey = todayKey + '_' + bucket;
     var savedKey = lsGet('insight_bucket_key');
-    var savedInsight = lsGet('insight_atual');
-    if (savedKey === bucketKey && savedInsight) return savedInsight;
+    var savedBase = lsGet('insight_atual');
 
     var phaseId = getPhaseByDay(state.currentDay);
     var lunarKey = getLunarPhaseKey();
     var combo = phaseId + '_' + lunarKey;
     var basePool = INSIGHTS_BANK[combo] || INSIGHTS_BANK['1_new'];
     var hourPool = HOUR_INSIGHTS[bucket] || [];
-    // Mix: 70% chance do banco principal, 30% do banco horário
     var useHour = Math.random() < 0.30 && hourPool.length > 0;
     var pool = useHour ? hourPool : basePool;
 
-    var recent = lsGetJSON('recentInsights') || [];
-    var available = pool.filter(function(ins) { return recent.indexOf(ins) === -1; });
-    if (!available.length) available = pool.slice();
-
-    var chosen = available[Math.floor(Math.random() * available.length)];
-    recent.push(chosen);
-    if (recent.length > 12) recent = recent.slice(-12);
-    lsSetJSON('recentInsights', recent);
-    lsSet('insight_atual', chosen);
-    lsSet('insight_bucket_key', bucketKey);
-    return chosen;
+    var chosen;
+    if (savedKey === bucketKey && savedBase) {
+      chosen = savedBase;
+    } else {
+      var recent = lsGetJSON('recentInsights') || [];
+      var available = pool.filter(function(ins) { return recent.indexOf(ins) === -1; });
+      if (!available.length) available = pool.slice();
+      chosen = available[Math.floor(Math.random() * available.length)];
+      recent.push(chosen);
+      if (recent.length > 12) recent = recent.slice(-12);
+      lsSetJSON('recentInsights', recent);
+      lsSet('insight_atual', chosen);
+      lsSet('insight_bucket_key', bucketKey);
+    }
+    return chosen + _personalSuffix(ctx);
   }
 
   // Mantém assinatura compatível com chamadas existentes — Promise<string|null>
   function callGeminiOracle(prompt, signal) {
     return new Promise(function(resolve) {
-      // Pequeno delay para preservar a sensação ritualística da consulta
       var timer = setTimeout(function() {
         if (signal && signal.aborted) { resolve(null); return; }
-        try { resolve(generateLocalInsight()); }
+        try { resolve(generateLocalInsight(prompt)); }
         catch(e) { resolve('A intuição é o oráculo mais antigo. Confie no que seu corpo já sabe.'); }
       }, 1100);
       if (signal) {
@@ -1579,7 +1622,7 @@
       var isCurrent = id === phaseId;
       html += '<button type="button" data-phase-start="' + id + '" style="position:relative;padding:0.875rem;border-radius:1.25rem;border:2px solid ' + (isCurrent ? p.border : T.border) + ';background:' + (isCurrent ? p.bg : T.white) + ';cursor:pointer;text-align:left;transition:all 0.2s;box-shadow:' + (isCurrent ? '0 4px 16px rgba(0,0,0,0.07)' : 'none') + ';transform:' + (isCurrent ? 'scale(1.04)' : 'scale(1)') + ';font-family:var(--sans);touch-action:manipulation">';
       if (isCurrent) html += '<span style="position:absolute;top:-0.5rem;right:-0.375rem;background:' + T.rose + ';color:' + T.ink + ';font-size:0.5rem;font-weight:800;padding:0.15rem 0.4rem;border-radius:9999px;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap">ATUAL</span>';
-      html += icon(p.icon, 16, isCurrent ? p.hex : 'rgba(250,245,255,0.45)', 'margin-bottom:0.375rem;display:block') +
+      html += icon(p.icon, 16, isCurrent ? p.hex : T.faint, 'margin-bottom:0.375rem;display:block') +
         '<p class="phase-btn-label" style="color:' + (isCurrent ? p.hex : T.muted) + '">' + p.name + '</p>' +
         '<p style="font-size:0.6rem;color:' + T.faint + ';margin:0">' + p.days + '</p></button>';
     });
@@ -1611,7 +1654,7 @@
       ].forEach(function(item) {
         html += '<div style="background:' + T.cream + ';padding:0.75rem;border-radius:0.875rem">' +
           '<p style="font-size:0.6rem;color:' + T.faint + ';text-transform:uppercase;letter-spacing:0.08em;margin:0 0 0.25rem">' + item.l + '</p>' +
-          '<p style="font-weight:700;color:' + T.ink + ';font-size:0.8125rem;margin:0 0 0.125rem">' + (item.v ? esc(item.v) : '<span style="color:rgba(250,245,255,0.4);font-weight:400;font-style:italic;font-size:0.7rem">sem dados</span>') + '</p>' +
+          '<p style="font-weight:700;color:' + T.ink + ';font-size:0.8125rem;margin:0 0 0.125rem">' + (item.v ? esc(item.v) : '<span style="color:' + T.faint + ';font-weight:400;font-style:italic;font-size:0.7rem">sem dados</span>') + '</p>' +
           (item.s && item.v ? '<p style="font-size:0.65rem;color:' + T.faint + ';margin:0">' + item.s + '</p>' : '') + '</div>';
       });
       html += '</div>';
@@ -1707,7 +1750,7 @@
       '<div style="height:4px;background:linear-gradient(90deg,' + phase.grad1 + ',' + phase.hex + ')"></div>' +
       '<div style="padding:1.125rem">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.875rem">' +
-          '<button type="button" id="btn-prev-day"' + (state.currentDay === 1 ? ' disabled' : '') + ' style="width:2.75rem;height:2.75rem;border-radius:50%;border:none;background:' + T.parchment + ';cursor:pointer;display:flex;align-items:center;justify-content:center;color:' + (state.currentDay === 1 ? 'rgba(250,245,255,0.3)' : T.rose) + ';opacity:' + (state.currentDay === 1 ? '0.35' : '1') + ';touch-action:manipulation;flex-shrink:0" aria-label="Dia anterior">' + icon('chevronLeft', 20) + '</button>' +
+          '<button type="button" id="btn-prev-day"' + (state.currentDay === 1 ? ' disabled' : '') + ' style="width:2.75rem;height:2.75rem;border-radius:50%;border:none;background:' + T.parchment + ';cursor:pointer;display:flex;align-items:center;justify-content:center;color:' + (state.currentDay === 1 ? T.faint : T.rose) + ';opacity:' + (state.currentDay === 1 ? '0.35' : '1') + ';touch-action:manipulation;flex-shrink:0" aria-label="Dia anterior">' + icon('chevronLeft', 20) + '</button>' +
           '<div style="text-align:center;flex:1" data-nav="guide">' +
             '<div style="display:flex;align-items:center;justify-content:center;gap:0.625rem">' +
               '<span style="font-family:var(--serif);font-size:clamp(2.5rem,8vw,3.25rem);font-weight:700;color:' + phase.hex + ';line-height:1">' + state.currentDay + '</span>' +
@@ -1725,14 +1768,14 @@
       var phaseColor = PHASES[ph].hex;
       var hasE = !!((state.journalData[i] || {}).mood || (state.journalData[i] || {}).intention);
       var isToday = i === state.currentDay;
-      var dotBg = isToday ? T.rose : (hasE ? phaseColor : 'rgba(255,255,255,0.2)');
+      var dotBg = isToday ? T.rose : (hasE ? phaseColor : T.soft);
       var dotShadow = isToday ? '0 0 0 3px rgba(124,58,237,0.35), 0 0 12px rgba(124,58,237,0.55)' : 'none';
       html += '<button type="button" class="timeline-dot" data-day="' + i + '" aria-label="Dia ' + i + '" title="Dia ' + i + '" style="width:10px;height:10px;border-radius:50%;cursor:pointer;transition:all 0.2s ease;background:' + dotBg + ';box-shadow:' + dotShadow + ';flex-shrink:0;touch-action:manipulation;border:none;padding:0"></button>';
     }
     html += '</div>' +
       '<p style="font-size:0.6rem;color:' + T.faint + ';margin:0.375rem 0 0;font-style:italic">← deslize para mudar o dia →</p>' +
     '</div>' +
-    '<button type="button" id="btn-next-day"' + (state.currentDay === 28 ? ' disabled' : '') + ' style="width:2.75rem;height:2.75rem;border-radius:50%;border:none;background:' + T.parchment + ';cursor:pointer;display:flex;align-items:center;justify-content:center;color:' + (state.currentDay === 28 ? 'rgba(250,245,255,0.3)' : T.rose) + ';opacity:' + (state.currentDay === 28 ? '0.35' : '1') + ';touch-action:manipulation;flex-shrink:0" aria-label="Próximo dia">' + icon('chevronRight', 20) + '</button></div>';
+    '<button type="button" id="btn-next-day"' + (state.currentDay === 28 ? ' disabled' : '') + ' style="width:2.75rem;height:2.75rem;border-radius:50%;border:none;background:' + T.parchment + ';cursor:pointer;display:flex;align-items:center;justify-content:center;color:' + (state.currentDay === 28 ? T.faint : T.rose) + ';opacity:' + (state.currentDay === 28 ? '0.35' : '1') + ';touch-action:manipulation;flex-shrink:0" aria-label="Próximo dia">' + icon('chevronRight', 20) + '</button></div>';
 
     // Mode toggle
     html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">' +
@@ -1759,7 +1802,7 @@
         '<label style="font-size:0.8125rem;font-weight:700;color:' + T.ink + '">' + s.label + '</label>' +
         '<span style="font-size:1.25rem;font-weight:700;color:' + phase.hex + ';font-family:var(--serif)">' + (dd[s.key] || 5) + '</span></div>' +
         '<input type="range" min="1" max="10" value="' + (dd[s.key] || 5) + '" data-slider="' + s.key + '" style="width:100%;height:0.625rem;border-radius:9999px;cursor:pointer;accent-color:' + phase.hex + '">' +
-        '<div style="display:flex;justify-content:space-between;font-size:0.65rem;color:rgba(250,245,255,0.55);margin-top:0.25rem"><span>Baixa</span><span>Alta</span></div></div>';
+        '<div style="display:flex;justify-content:space-between;font-size:0.65rem;color:' + T.faint + ';margin-top:0.25rem"><span>Baixa</span><span>Alta</span></div></div>';
     });
     html += '</div>';
 
@@ -1880,8 +1923,8 @@
     // Section 4
     html += '<section style="margin-bottom:1.75rem"><h3 class="section-header">' + icon('penTool', 17, p.hex) + ' 4. Espaço Criativo</h3>' +
       '<div style="border:3px dashed ' + T.border + ';border-radius:1.5rem;padding:1.5rem;text-align:center;background:' + T.cream + '60">' +
-        icon('layout', 28, 'rgba(250,245,255,0.4)', 'margin:0 auto 0.625rem;display:block') +
-        '<p style="font-size:0.8125rem;color:rgba(250,245,255,0.55);margin:0 0 0.875rem">Espaço livre: palavras, rituais, visualizações...</p>' +
+        icon('layout', 28, T.faint, 'margin:0 auto 0.625rem;display:block') +
+        '<p style="font-size:0.8125rem;color:' + T.faint + ';margin:0 0 0.875rem">Espaço livre: palavras, rituais, visualizações...</p>' +
         '<textarea class="dl-textarea" data-weekly="creativeSpace" style="height:9rem;text-align:center;font-family:var(--serif);font-size:1rem;background:transparent;border:none;resize:none" placeholder="Escreva, liste, imagine...">' + esc(wData.creativeSpace || '') + '</textarea></div></section>';
 
     // Section 5
@@ -1950,7 +1993,7 @@
         '<p style="font-weight:700;font-size:0.875rem;color:' + ph.hex + ';margin:0 0 0.375rem">' + ph.name + '</p>' +
         '<p style="font-family:var(--serif);font-size:1.75rem;font-weight:700;color:' + T.ink + ';margin:0 0 0.25rem;line-height:1">' + ps.avgEnergy + '</p>' +
         '<p style="font-size:0.65rem;color:' + T.faint + ';text-transform:uppercase;letter-spacing:0.08em;margin:0 0 0.625rem">energia média</p>' +
-        '<div style="background:rgba(255,255,255,0.5);border-radius:9999px;height:0.375rem;overflow:hidden;margin-bottom:0.5rem"><div style="height:100%;background:' + ph.dot + ';border-radius:9999px;width:' + ((parseFloat(ps.avgEnergy)/10)*100) + '%;transition:width 0.7s ease"></div></div>' +
+        '<div style="background:rgba(0,0,0,0.15);border-radius:9999px;height:0.375rem;overflow:hidden;margin-bottom:0.5rem"><div style="height:100%;background:' + ph.dot + ';border-radius:9999px;width:' + ((parseFloat(ps.avgEnergy)/10)*100) + '%;transition:width 0.7s ease"></div></div>' +
         '<p style="font-size:0.65rem;color:' + T.faint + ';margin:0">' + ps.registered + '/' + ps.total + ' dias</p></div>';
     });
     html += '</div></div>';
@@ -2028,7 +2071,7 @@
       var bgMap = { 1: PHASES[1].bg, 2: PHASES[2].bg, 3: PHASES[3].bg, 4: PHASES[4].bg };
       html += '<button type="button" data-mosaic-day="' + day + '" style="aspect-ratio:1;border-radius:0.625rem;background:' + bgMap[ph] + ';display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid ' + (isToday ? T.rose : hasEntry ? T.border : 'transparent') + ';cursor:pointer;transition:all 0.15s;transform:' + (isToday ? 'scale(1.08)' : 'scale(1)') + ';box-shadow:' + (isToday ? '0 4px 12px ' + T.rose + '30' : 'none') + ';position:relative;font-family:var(--sans);touch-action:manipulation">';
       if (isToday) html += '<span style="position:absolute;top:-0.375rem;right:-0.375rem;width:0.5rem;height:0.5rem;background:' + T.rose + ';border:2px solid ' + T.surface + ';border-radius:50%"></span>';
-      html += '<span style="font-size:0.5rem;font-weight:700;position:absolute;top:0.15rem;left:0.25rem;color:' + (isToday ? T.rose : hasEntry ? T.muted : 'rgba(250,245,255,0.35)') + '">' + day + '</span>';
+      html += '<span style="font-size:0.5rem;font-weight:700;position:absolute;top:0.15rem;left:0.25rem;color:' + (isToday ? T.rose : hasEntry ? T.muted : 'rgba(255,255,255,0.5)') + '">' + day + '</span>';
       if (mood) html += '<span style="font-size:0.875rem">' + mood.split(' ')[0] + '</span>';
       else html += '<span style="width:0.3rem;height:0.3rem;border-radius:50%;background:rgba(255,255,255,0.2)"></span>';
       if (parseInt(energy) > 0) html += '<div style="position:absolute;bottom:0.2rem;width:60%;height:0.2rem;background:rgba(255,255,255,0.7);border-radius:9999px;overflow:hidden"><div style="height:100%;background:' + T.rose + '90;border-radius:9999px;width:' + ((parseInt(energy)/10)*100) + '%"></div></div>';
@@ -2428,7 +2471,7 @@
         '<div style="font-size:1.875rem;line-height:1;filter:' + (a.unlocked ? 'none' : 'grayscale(1)') + '">' + a.emoji + '</div>' +
         '<p style="font-weight:700;font-size:0.8125rem;color:' + (a.unlocked ? T.ink : T.muted) + ';margin:0;line-height:1.2">' + a.name + '</p>' +
         '<p style="font-size:0.65rem;color:' + T.faint + ';margin:0;line-height:1.3;min-height:1.7rem">' + a.desc + '</p>' +
-        '<div style="width:100%;height:0.25rem;background:rgba(255,255,255,0.08);border-radius:9999px;overflow:hidden;margin-top:0.125rem">' +
+        '<div style="width:100%;height:0.25rem;background:' + T.borderLt + ';border-radius:9999px;overflow:hidden;margin-top:0.125rem">' +
           '<div style="height:100%;background:' + (a.unlocked ? T.rose : T.faint) + ';width:' + pct + '%;border-radius:9999px;transition:width 0.5s ease"></div>' +
         '</div>' +
         '<p style="font-size:0.6rem;color:' + T.faint + ';margin:0;font-variant-numeric:tabular-nums">' + (a.unlocked ? 'Desbloqueada' : a.current + '/' + a.total) + '</p>' +
@@ -3321,34 +3364,14 @@
       if (btnPDF) btnPDF.onclick = function() {
         showConfirmModal({
           iconEmoji: '📄',
-          title: 'Exportar como PDF',
-          desc: 'Gera um documento elegante com sua Mandala de Energia, registros do ciclo atual e insights salvos. Ideal para guardar ou imprimir.',
-          note: '⏱ Pode levar alguns segundos.',
-          ctaText: 'Gerar PDF',
+          title: 'Exportar Diário como PDF',
+          desc: 'Gera uma página elegante com todos os registros organizados por fase. Abre em nova aba — use o menu do navegador (Arquivo → Imprimir → Salvar como PDF) para salvar.',
+          note: '💡 Dica: no celular, toque nos 3 pontos do navegador e selecione "Imprimir" ou "Compartilhar".',
+          ctaText: 'Gerar & Abrir',
           cancelText: 'Cancelar',
           onConfirm: function() {
-            showLoadingOverlay('Gerando sua mandala...');
-            // requestAnimationFrame para liberar a thread antes do trabalho pesado
-            requestAnimationFrame(function() {
-              loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
-                .then(function() { return loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'); })
-                .then(function() {
-                  var el = document.getElementById('printable-summary');
-                  if (!el) throw new Error('no-element');
-                  return window.html2canvas(el, { scale: 2, useCORS: true, backgroundColor: T.bg });
-                }).then(function(canvas) {
-                  if (!canvas) throw new Error('no-canvas');
-                  var pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
-                  var pw = pdf.internal.pageSize.getWidth();
-                  pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pw, (canvas.height * pw) / canvas.width);
-                  pdf.save('sintese-lunar.pdf');
-                  hideLoadingOverlay();
-                  showSuccessToast('Mandala exportada com sucesso!');
-                }).catch(function() {
-                  hideLoadingOverlay();
-                  showSuccessToast('Erro ao gerar PDF — tente novamente');
-                });
-            });
+            try { renderFullDiaryHTML(); }
+            catch(e) { console.error('pdf export failed:', e); showSuccessToast('Erro ao gerar PDF — tente novamente'); }
           }
         });
       };
