@@ -366,17 +366,17 @@ select {
   left: 50%; transform: translateX(-50%); z-index: 300;
 }
 
-/* ─── COMMON INPUT STYLES (premium dark) ─── */
+/* ─── COMMON INPUT STYLES ─── */
 .dl-input,
 .dl-textarea {
   width: 100%;
   padding: 14px 16px;
   border-radius: 12px;
-  border: 1.5px solid rgba(192,132,252,0.4);
+  border: 1.5px solid var(--border);
   outline: none;
   font-size: 16px;
   color: var(--ink);
-  background: rgba(255,255,255,0.08);
+  background: var(--parchment);
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
   font-family: var(--sans);
   line-height: 1.55;
@@ -391,19 +391,19 @@ select {
 }
 .dl-input::placeholder,
 .dl-textarea::placeholder {
-  color: rgba(250,245,255,0.45);
+  color: var(--faint);
   font-style: italic;
-  opacity: 1; /* Firefox normaliza */
+  opacity: 1;
 }
 .dl-input:hover,
 .dl-textarea:hover {
-  border-color: rgba(192,132,252,0.55);
+  border-color: var(--primary);
 }
 .dl-input:focus,
 .dl-textarea:focus {
   border-color: var(--primary);
-  background: rgba(255,255,255,0.12);
-  box-shadow: 0 0 0 3px rgba(124,58,237,0.25);
+  background: var(--cream);
+  box-shadow: 0 0 0 3px var(--border-lt);
 }
 .dl-input:disabled,
 .dl-textarea:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -431,7 +431,7 @@ select {
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: none;
-  background: rgba(23,15,46,0.7);
+  background: var(--surface);
   padding: 0.125rem 0.4375rem;
   border-radius: 9999px;
   font-variant-numeric: tabular-nums;

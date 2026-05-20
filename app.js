@@ -102,6 +102,10 @@
     return 4;
   }
 
+  function phHex(p) {
+    return T.white === '#FFFFFF' ? (p.hexDk || p.hex) : p.hex;
+  }
+
   function calcCycleDay() {
     try {
       var startDateStr = lsGet('cycleStartDate');
@@ -309,12 +313,35 @@
     return '';
   }
 
+  function _detectCategory(s) {
+    if (!s) return 'default';
+    var text = s.toLowerCase();
+    var dif = ['difícil','dificil','cansada','cansado','triste','preocupada','preocupado','ansiedade','ansioso','ansiosa','pesado','pesada','exausta','exausto','sobrecarga','medo','perdida','confusa','angustia','angústia','esgotada','esgotado','doendo','dor','sofrimento','frustrada','frustrado'];
+    var cel = ['feliz','conquista','gratidão','gratidao','alegria','vitória','vitoria','celebrar','celebração','celebracao','consegui','realizei','orgulho','abundância','abundancia','maravilhoso','maravilhosa','ótimo','otimo','perfeito','leve','tranquila','tranquilo','aliviada','aliviado','grata','grato'];
+    var tra = ['mudança','mudanca','crescimento','aprendizado','aprendizagem','novo','nova','transformação','transformacao','evoluindo','evolução','evolucao','descoberta','revelação','revelacao','mudei','aprendi','compreendi','insight','virada','diferente','perceber','percebi','entendi','clareza'];
+    var dScore = 0, cScore = 0, tScore = 0;
+    dif.forEach(function(w) { if (text.indexOf(w) !== -1) dScore++; });
+    cel.forEach(function(w) { if (text.indexOf(w) !== -1) cScore++; });
+    tra.forEach(function(w) { if (text.indexOf(w) !== -1) tScore++; });
+    var max = Math.max(dScore, cScore, tScore);
+    if (max === 0) return 'default';
+    if (dScore === max) return 'dificuldade';
+    if (cScore === max) return 'celebracao';
+    return 'transformacao';
+  }
+
   function generateLocalInsight(rawPrompt) {
     var ctx = _parseOracleCtx(rawPrompt || '');
+    var category = _detectCategory(rawPrompt || '');
+    var categoryPrefix = '';
+    if (category === 'dificuldade') categoryPrefix = 'Percebo em suas palavras uma energia de acolhimento. ';
+    else if (category === 'celebracao') categoryPrefix = 'Percebo em suas palavras uma energia de celebração. ';
+    else if (category === 'transformacao') categoryPrefix = 'Percebo em suas palavras uma energia de expansão. ';
+
     // Coerência por janela de 4h: insight base muda ao longo do dia conforme hora
     var bucket = _getHourBucket();
     var todayKey = new Date().toISOString().split('T')[0];
-    var bucketKey = todayKey + '_' + bucket;
+    var bucketKey = todayKey + '_' + bucket + '_' + category;
     var savedKey = lsGet('insight_bucket_key');
     var savedBase = lsGet('insight_atual');
 
@@ -340,7 +367,7 @@
       lsSet('insight_atual', chosen);
       lsSet('insight_bucket_key', bucketKey);
     }
-    return chosen + _personalSuffix(ctx);
+    return categoryPrefix + chosen + _personalSuffix(ctx);
   }
 
   // Mantém assinatura compatível com chamadas existentes — Promise<string|null>
@@ -396,23 +423,24 @@
     function entradaHTML(item) {
       var e = item.e;
       var ph = PHASES[getPhaseByDay(item.day)];
-      var bloco = '<article class="entry">' +
-        '<header class="entry-head">' +
-          '<div class="entry-day">Dia ' + item.day + '</div>' +
-          '<div class="entry-phase" style="color:' + ph.hex + '">' + esc(ph.name) + (e.mood ? ' · ' + esc(e.mood) : '') + '</div>' +
-        '</header>';
-      if (e.intention) bloco += '<div class="entry-section"><h4>✨ Intenção</h4><p>' + esc(e.intention) + '</p></div>';
-      if (e.reflectionAnswer) bloco += '<div class="entry-section"><h4>📖 Reflexão</h4><p>' + esc(e.reflectionAnswer).replace(/\n/g,'<br>') + '</p></div>';
+      var bloco = '<div class="entry">' +
+        '<div class="entry-header">' +
+          '<span class="entry-day">Dia ' + item.day + '</span>' +
+          '<span class="entry-phase-tag">' + esc(ph.name) + '</span>' +
+          (e.mood ? '<div class="entry-mood">' + esc(e.mood) + '</div>' : '') +
+        '</div>';
+      if (e.intention) bloco += '<div class="section-block"><h4>Intenção</h4><p>' + esc(e.intention) + '</p></div>';
+      if (e.reflectionAnswer) bloco += '<div class="section-block"><h4>Reflexão</h4><p>' + esc(e.reflectionAnswer).replace(/\n/g,'<br>') + '</p></div>';
       var grats = [];
       [1,2,3].forEach(function(n) { if (e['gratitude' + n]) grats.push(e['gratitude' + n]); });
       if (grats.length) {
-        bloco += '<div class="entry-section"><h4>💜 Gratidão</h4><ul>';
+        bloco += '<div class="section-block"><h4>Gratidão</h4><ul>';
         grats.forEach(function(g) { bloco += '<li>' + esc(g) + '</li>'; });
         bloco += '</ul></div>';
       }
-      if (e.learning) bloco += '<div class="entry-section"><h4>💡 Aprendi sobre mim</h4><p>' + esc(e.learning) + '</p></div>';
-      if (e.selfCareTomorrow) bloco += '<div class="entry-section"><h4>🛡 Cuidado para amanhã</h4><p>' + esc(e.selfCareTomorrow) + '</p></div>';
-      bloco += '</article>';
+      if (e.learning) bloco += '<div class="section-block"><h4>Aprendi sobre mim</h4><p>' + esc(e.learning) + '</p></div>';
+      if (e.selfCareTomorrow) bloco += '<div class="section-block"><h4>Cuidado para amanhã</h4><p>' + esc(e.selfCareTomorrow) + '</p></div>';
+      bloco += '</div>';
       return bloco;
     }
 
@@ -421,86 +449,78 @@
       var ph = PHASES[pid];
       var items = entradasPorFase[pid];
       if (!items.length) return;
-      faseHTML += '<section class="phase-block" style="border-color:' + ph.hex + '40">' +
-        '<header class="phase-head" style="background:linear-gradient(135deg,' + ph.hex + '15,transparent)">' +
-          '<h2 style="color:' + ph.hex + '">' + esc(ph.name) + '</h2>' +
-          '<p>' + esc(ph.season || '') + ' · ' + items.length + ' registro(s)</p>' +
-        '</header>' +
-        '<div class="phase-entries">' + items.map(entradaHTML).join('') + '</div>' +
-      '</section>';
+      faseHTML += '<div class="phase-block">' +
+        '<div class="phase-title">' + esc(ph.name) + ' — ' + esc(ph.season || '') + '</div>' +
+        '<div class="phase-meta">' + esc(ph.days) + ' · ' + items.length + ' registro(s)</div>' +
+        items.map(entradaHTML).join('') +
+      '</div>';
     });
 
     var conquistasHTML = '';
     if (conquistasDesb.length) {
-      conquistasHTML = '<section class="achievements-block"><h2>🏆 Conquistas desta jornada</h2><div class="achievements-grid">' +
+      conquistasHTML = '<div class="achievements-section"><h2>Conquistas desta jornada</h2><ul class="ach-list">' +
         conquistasDesb.map(function(a) {
-          return '<div class="ach-card"><div class="ach-emoji">' + a.emoji + '</div><div class="ach-name">' + esc(a.name) + '</div><div class="ach-desc">' + esc(a.desc) + '</div></div>';
+          return '<li>' + a.emoji + ' <strong>' + esc(a.name) + '</strong> — ' + esc(a.desc) + '</li>';
         }).join('') +
-      '</div></section>';
+      '</ul></div>';
     }
 
     var emptyHTML = '';
     if (totalEntradas === 0) {
-      emptyHTML = '<section class="empty-state"><p>Seu diário ainda está em branco. Comece a registrar e ele florescerá página a página. 🌱</p></section>';
+      emptyHTML = '<p class="empty-note">Seu diário ainda está em branco. Comece a registrar e ele florescerá página a página.</p>';
     }
 
     var doc = '<!DOCTYPE html><html lang="pt-BR"><head>' +
       '<meta charset="UTF-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1.0">' +
-      '<title>' + esc(nomeArquivo.replace('.html','')) + '</title>' +
+      '<title>Diário Lunar — ' + esc(mesNome) + ' ' + ano + '</title>' +
       '<style>' +
         '*{box-sizing:border-box;margin:0;padding:0}' +
-        'body{font-family:system-ui,-apple-system,sans-serif;background:#FAF5FF;color:#1C1917;line-height:1.65;padding:2.5rem 40px}' +
-        '.cover{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1.5rem;text-align:center;background:linear-gradient(145deg,#170F2E,#26184A);color:#FAF5FF;page-break-after:always}' +
-        '.cover-moon{width:5rem;height:5rem;border-radius:50%;background:radial-gradient(circle at 35% 35%,#C084FC,#7C3AED);box-shadow:0 0 60px rgba(192,132,252,0.45);margin-bottom:1.5rem}' +
-        '.cover h1{font-size:clamp(2rem,6vw,3rem);font-weight:700;letter-spacing:-0.02em;margin-bottom:0.5rem}' +
-        '.cover .subtitle{font-style:italic;color:#C084FC;margin-bottom:2rem;font-size:1.05rem}' +
-        '.cover .meta{font-size:0.85rem;color:#E9D5FF;letter-spacing:0.1em;text-transform:uppercase}' +
-        '.cover .stats{margin-top:2.5rem;display:flex;flex-wrap:wrap;gap:1rem;justify-content:center}' +
-        '.cover .stat{background:rgba(255,255,255,0.06);border:1px solid rgba(192,132,252,0.3);border-radius:1rem;padding:0.875rem 1.25rem;min-width:8rem}' +
-        '.cover .stat-num{font-size:1.75rem;font-weight:700;color:#FAF5FF}' +
-        '.cover .stat-label{font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#C084FC;margin-top:0.25rem}' +
-        '.content{max-width:48rem;margin:0 auto;padding:3rem 1.5rem 5rem}' +
-        '.phase-block{margin-bottom:3rem;border-radius:1.25rem;overflow:hidden;border:2px solid #E7E5E4;background:#fff}' +
-        '.phase-head{padding:1.25rem 1.5rem;border-bottom:1px solid #E7E5E4}' +
-        '.phase-head h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em}' +
-        '.phase-head p{font-size:0.8rem;color:#78716C;text-transform:uppercase;letter-spacing:0.1em;margin-top:0.25rem}' +
-        '.phase-entries{padding:1.5rem}' +
-        '.entry{padding:1.25rem 0;border-bottom:1px solid #F5F5F4}' +
-        '.entry:last-child{border-bottom:none}' +
-        '.entry-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.875rem;flex-wrap:wrap;gap:0.5rem}' +
-        '.entry-day{font-weight:700;font-size:1.125rem;color:#1C1917}' +
-        '.entry-phase{font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em}' +
-        '.entry-section{margin:0.875rem 0}' +
-        '.entry-section h4{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#7C3AED;margin-bottom:0.375rem}' +
-        '.entry-section p{font-size:0.95rem;color:#1C1917}' +
-        '.entry-section ul{list-style:none;padding-left:0}' +
-        '.entry-section li{padding:0.25rem 0;color:#1C1917;font-size:0.95rem}' +
-        '.entry-section li::before{content:"♡ ";color:#D946EF}' +
-        '.achievements-block{margin-top:3rem;padding:2rem;background:linear-gradient(135deg,#FCD34D15,#FAF5FF);border-radius:1.25rem;border:1px solid #E7E5E4}' +
-        '.achievements-block h2{font-size:1.5rem;text-align:center;margin-bottom:1.5rem;color:#1C1917}' +
-        '.achievements-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(10rem,1fr));gap:1rem}' +
-        '.ach-card{background:#fff;border:1px solid #E7E5E4;border-radius:0.875rem;padding:1rem;text-align:center}' +
-        '.ach-emoji{font-size:1.75rem;margin-bottom:0.375rem}' +
-        '.ach-name{font-weight:700;font-size:0.875rem;margin-bottom:0.25rem}' +
-        '.ach-desc{font-size:0.75rem;color:#78716C}' +
-        '.empty-state{text-align:center;padding:4rem 1.5rem;color:#78716C;font-style:italic}' +
-        '.footer{text-align:center;padding:2rem;font-size:0.75rem;color:#78716C;border-top:1px solid #E7E5E4;margin-top:3rem}' +
-        '@media print{.cover{min-height:auto;page-break-after:always}.phase-block{page-break-inside:avoid;border:none}body{background:#fff}}' +
+        'body{font-family:Georgia,"Times New Roman",Times,serif;background:#fff;color:#1C1917;font-size:14px;line-height:1.7;max-width:600px;margin:0 auto;padding:40px}' +
+        'h1{font-size:26px;font-weight:700;margin-bottom:4px}' +
+        'h2{font-size:18px;font-weight:700;margin:32px 0 8px}' +
+        'h3{font-size:15px;font-weight:700;margin:24px 0 6px}' +
+        'h4{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#57534E;margin:12px 0 4px}' +
+        'p{margin-bottom:8px}' +
+        '.page-header{border-bottom:2px solid #1C1917;padding-bottom:12px;margin-bottom:32px}' +
+        '.page-header .subtitle{font-style:italic;color:#57534E;font-size:13px;margin:2px 0 0}' +
+        '.page-header .meta{font-size:12px;color:#78716C;margin-top:6px}' +
+        '.stats-row{display:flex;gap:24px;margin-top:12px;flex-wrap:wrap}' +
+        '.stat-item{font-size:12px;color:#57534E}' +
+        '.stat-item strong{color:#1C1917;font-size:18px;display:block}' +
+        '.phase-block{margin:32px 0;border-left:3px solid #E7E5E4;padding-left:16px}' +
+        '.phase-title{font-size:16px;font-weight:700;margin-bottom:4px}' +
+        '.phase-meta{font-size:11px;color:#78716C;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:16px}' +
+        '.entry{margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #E7E5E4}' +
+        '.entry:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}' +
+        '.entry-header{margin-bottom:10px}' +
+        '.entry-day{font-size:15px;font-weight:700;color:#1C1917}' +
+        '.entry-phase-tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#57534E;margin-left:8px}' +
+        '.entry-mood{font-size:13px;color:#57534E;margin-top:2px}' +
+        '.section-block{margin:10px 0}' +
+        '.section-block p,.section-block li{font-size:14px;color:#1C1917;line-height:1.65}' +
+        '.section-block ul{list-style:none;padding:0}' +
+        '.section-block li{padding:2px 0}' +
+        '.section-block li::before{content:"♡ ";color:#78716C}' +
+        '.achievements-section{margin-top:40px;padding-top:24px;border-top:2px solid #E7E5E4}' +
+        '.ach-list{list-style:none;padding:0;margin-top:12px}' +
+        '.ach-list li{padding:6px 0;border-bottom:1px solid #F5F5F4;font-size:13px}' +
+        '.ach-list li:last-child{border-bottom:none}' +
+        '.empty-note{color:#78716C;font-style:italic;padding:24px 0}' +
+        '.footer{margin-top:48px;padding-top:16px;border-top:1px solid #E7E5E4;font-size:11px;color:#78716C;text-align:center}' +
+        '@media print{body{padding:20px}h2{page-break-before:auto}.phase-block{page-break-inside:avoid}}' +
       '</style></head><body>' +
-        '<section class="cover">' +
-          '<div class="cover-moon"></div>' +
+        '<div class="page-header">' +
           '<h1>Diário Lunar</h1>' +
-          '<p class="subtitle">Sua jornada cíclica em palavras</p>' +
-          '<p class="meta">' + esc(mesNome) + ' · ' + ano + '</p>' +
-          '<div class="stats">' +
-            '<div class="stat"><div class="stat-num">' + totalEntradas + '</div><div class="stat-label">Registros</div></div>' +
-            '<div class="stat"><div class="stat-num">' + conquistasDesb.length + '</div><div class="stat-label">Conquistas</div></div>' +
-            '<div class="stat"><div class="stat-num">28</div><div class="stat-label">Dias do ciclo</div></div>' +
+          '<p class="subtitle">Jornada cíclica · ' + esc(mesNome) + ' ' + ano + '</p>' +
+          '<p class="meta">Gerado em ' + esc(now.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })) + '</p>' +
+          '<div class="stats-row">' +
+            '<div class="stat-item"><strong>' + totalEntradas + '</strong>registros</div>' +
+            '<div class="stat-item"><strong>' + conquistasDesb.length + '</strong>conquistas</div>' +
           '</div>' +
-        '</section>' +
-        '<main class="content">' + emptyHTML + faseHTML + conquistasHTML + '</main>' +
-        '<footer class="footer">Diário Lunar · Gerado em ' + esc(now.toLocaleDateString('pt-BR')) + '</footer>' +
+        '</div>' +
+        emptyHTML + faseHTML + conquistasHTML +
+        '<div class="footer">Diário Lunar · ' + esc(mesNome) + ' ' + ano + '</div>' +
       '</body></html>';
 
     try {
@@ -548,7 +568,7 @@
   var PHASES = {
     1: {
       id: 1, name: "Renovação", season: "Inverno Interior", days: "Dias 1–7",
-      hex: "#818CF8", bg: "#1C1245", border: "rgba(129,140,248,0.35)", dot: "#818CF8",
+      hex: "#818CF8", hexDk: "#4338CA", bg: "#1C1245", border: "rgba(129,140,248,0.35)", dot: "#818CF8",
       grad1: "#1C1245", grad2: "#170F2E", icon: "moon",
       desc: "Energia baixa. Momento de recolhimento, intuição e descanso profundo. Seu corpo está limpando e se preparando para um novo ciclo.",
       focus: "Descanso e Planejamento",
@@ -559,7 +579,7 @@
     },
     2: {
       id: 2, name: "Crescimento", season: "Primavera Interior", days: "Dias 8–14",
-      hex: "#34D399", bg: "#0D2318", border: "rgba(52,211,153,0.35)", dot: "#34D399",
+      hex: "#34D399", hexDk: "#047857", bg: "#0D2318", border: "rgba(52,211,153,0.35)", dot: "#34D399",
       grad1: "#0D2318", grad2: "#170F2E", icon: "coffee",
       desc: "Energia ascendente. A mente fica mais afiada, ideal para iniciar projetos, aprender coisas novas e socializar levemente.",
       focus: "Ação e Criatividade",
@@ -570,7 +590,7 @@
     },
     3: {
       id: 3, name: "Força", season: "Verão Interior", days: "Dias 15–21",
-      hex: "#C084FC", bg: "#271640", border: "rgba(192,132,252,0.35)", dot: "#C084FC",
+      hex: "#C084FC", hexDk: "#6D28D9", bg: "#271640", border: "rgba(192,132,252,0.35)", dot: "#C084FC",
       grad1: "#271640", grad2: "#170F2E", icon: "sun",
       desc: "Pico de energia. Magnetismo pessoal, comunicação fluida e desejo de conexão social. Ótimo para apresentações e encontros importantes.",
       focus: "Resultados e Conexão",
@@ -581,7 +601,7 @@
     },
     4: {
       id: 4, name: "Sabedoria", season: "Outono Interior", days: "Dias 22–28",
-      hex: "#FBBF24", bg: "#231600", border: "rgba(251,191,36,0.35)", dot: "#FBBF24",
+      hex: "#FBBF24", hexDk: "#92400E", bg: "#231600", border: "rgba(251,191,36,0.35)", dot: "#FBBF24",
       grad1: "#231600", grad2: "#170F2E", icon: "feather",
       desc: "Energia declinando. O véu entre consciente e inconsciente afina. Crítica interna pode aumentar — use-a para revisão, não autopunição.",
       focus: "Avaliação e Liberação",
@@ -1701,7 +1721,7 @@
         '<div class="guide-card-inner">' +
           '<div style="display:flex;flex-direction:column;align-items:center;min-width:9rem;padding-top:0.5rem">' +
             '<div style="padding:1.25rem;border-radius:50%;background:' + p.bg + ';border:2px solid ' + p.border + ';margin-bottom:0.875rem">' + icon(p.icon, 32, p.hex) + '</div>' +
-            '<h3 style="font-family:var(--serif);font-size:1.375rem;font-weight:700;color:' + p.hex + ';margin:0 0 0.25rem">' + p.name + '</h3>' +
+            '<h3 style="font-family:var(--serif);font-size:1.375rem;font-weight:700;color:' + phHex(p) + ';margin:0 0 0.25rem">' + p.name + '</h3>' +
             '<p style="font-size:0.7rem;color:' + T.faint + ';text-transform:uppercase;letter-spacing:0.1em;margin:0 0 0.625rem">' + p.season + '</p>' +
             tag(p.days, p.bg, p.hex) +
           '</div>' +
@@ -1753,9 +1773,9 @@
           '<button type="button" id="btn-prev-day"' + (state.currentDay === 1 ? ' disabled' : '') + ' style="width:2.75rem;height:2.75rem;border-radius:50%;border:none;background:' + T.parchment + ';cursor:pointer;display:flex;align-items:center;justify-content:center;color:' + (state.currentDay === 1 ? T.faint : T.rose) + ';opacity:' + (state.currentDay === 1 ? '0.35' : '1') + ';touch-action:manipulation;flex-shrink:0" aria-label="Dia anterior">' + icon('chevronLeft', 20) + '</button>' +
           '<div style="text-align:center;flex:1" data-nav="guide">' +
             '<div style="display:flex;align-items:center;justify-content:center;gap:0.625rem">' +
-              '<span style="font-family:var(--serif);font-size:clamp(2.5rem,8vw,3.25rem);font-weight:700;color:' + phase.hex + ';line-height:1">' + state.currentDay + '</span>' +
+              '<span style="font-family:var(--serif);font-size:clamp(2.5rem,8vw,3.25rem);font-weight:700;color:' + phHex(phase) + ';line-height:1">' + state.currentDay + '</span>' +
               '<div style="text-align:left">' +
-                '<p style="font-weight:700;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.1em;color:' + phase.hex + ';margin:0 0 0.125rem">' + phase.name + '</p>' +
+                '<p style="font-weight:700;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.1em;color:' + phHex(phase) + ';margin:0 0 0.125rem">' + phase.name + '</p>' +
                 '<p style="font-size:0.7rem;color:' + T.faint + ';margin:0 0 0.125rem">' + phase.season + '</p>' +
                 '<p style="font-size:0.65rem;color:' + T.rose + ';margin:0;display:flex;align-items:center;gap:0.25rem">' + icon('info', 10) + ' ver guia</p>' +
               '</div>' +
@@ -1800,14 +1820,14 @@
     [{ key: 'physicalLevel', label: labels.l1 }, { key: 'emotionalLevel', label: labels.l2 }].forEach(function(s) {
       html += '<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">' +
         '<label style="font-size:0.8125rem;font-weight:700;color:' + T.ink + '">' + s.label + '</label>' +
-        '<span style="font-size:1.25rem;font-weight:700;color:' + phase.hex + ';font-family:var(--serif)">' + (dd[s.key] || 5) + '</span></div>' +
+        '<span style="font-size:1.25rem;font-weight:700;color:' + phHex(phase) + ';font-family:var(--serif)">' + (dd[s.key] || 5) + '</span></div>' +
         '<input type="range" min="1" max="10" value="' + (dd[s.key] || 5) + '" data-slider="' + s.key + '" style="width:100%;height:0.625rem;border-radius:9999px;cursor:pointer;accent-color:' + phase.hex + '">' +
         '<div style="display:flex;justify-content:space-between;font-size:0.65rem;color:' + T.faint + ';margin-top:0.25rem"><span>Baixa</span><span>Alta</span></div></div>';
     });
     html += '</div>';
 
     // Intention
-    html += '<div><label style="display:block;font-size:0.8125rem;font-weight:700;color:' + phase.hex + ';margin:0 0 0.5rem">' + labels.intentLabel + '</label>' +
+    html += '<div><label style="display:block;font-size:0.8125rem;font-weight:700;color:' + phHex(phase) + ';margin:0 0 0.5rem">' + labels.intentLabel + '</label>' +
       '<input type="text" class="dl-input" id="input-intention" placeholder="' + esc(labels.intentHolder) + '" value="' + esc(dd.intention || '') + '"></div>';
 
     if (state.dailyMode === 'quick') {
@@ -1822,7 +1842,7 @@
       // Reflection
       html += '<div style="background:' + T.white + ';border-radius:1.5rem;border:2px solid ' + phase.border + ';padding:1.5rem;position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.04)">' +
         '<div style="position:absolute;top:0;right:0;padding:1.5rem;opacity:0.025;pointer-events:none;color:' + phase.hex + '">' + icon('star', 140) + '</div>' +
-        '<h3 style="font-family:var(--serif);font-size:1.125rem;font-weight:700;margin:0 0 1rem;display:flex;align-items:center;gap:0.5rem;color:' + phase.hex + '">' + icon('star', 18, phase.hex) + ' Reflexão do Dia</h3>' +
+        '<h3 style="font-family:var(--serif);font-size:1.125rem;font-weight:700;margin:0 0 1rem;display:flex;align-items:center;gap:0.5rem;color:' + phHex(phase) + '">' + icon('star', 18, phHex(phase)) + ' Reflexão do Dia</h3>' +
         '<p style="font-family:var(--serif);font-size:1.0625rem;color:' + T.ink + ';font-style:italic;margin:0 0 1rem;line-height:1.65">"' + esc(prompt) + '"</p>' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.625rem;flex-wrap:wrap;gap:0.5rem">' +
           '<span style="font-size:0.75rem;color:' + T.faint + '">Deixe fluir livremente</span>' +
@@ -1846,11 +1866,11 @@
 
       // Closing
       html += '<div style="border-radius:1.5rem;border:2px solid ' + phase.border + ';padding:1.5rem;box-shadow:0 4px 16px rgba(0,0,0,0.04);background:linear-gradient(145deg,' + phase.grad1 + '30,' + T.white + ')">' +
-        '<h3 class="section-header">' + icon('sunset', 17, phase.hex) + ' Fechamento do Dia</h3>' +
+        '<h3 class="section-header">' + icon('sunset', 17, phHex(phase)) + ' Fechamento do Dia</h3>' +
         '<div style="display:flex;flex-direction:column;gap:1.25rem">' +
-          '<div><label style="font-size:0.8125rem;font-weight:700;color:' + phase.hex + ';margin:0 0 0.5rem;display:flex;align-items:center;gap:0.375rem">' + icon('lightbulb', 14) + ' O que aprendi sobre mim hoje?</label>' +
+          '<div><label style="font-size:0.8125rem;font-weight:700;color:' + phHex(phase) + ';margin:0 0 0.5rem;display:flex;align-items:center;gap:0.375rem">' + icon('lightbulb', 14) + ' O que aprendi sobre mim hoje?</label>' +
             '<textarea class="dl-textarea" id="textarea-learning" style="height:5.5rem" placeholder="Hoje notei que...">' + esc(dd.learning || '') + '</textarea></div>' +
-          '<div><label style="font-size:0.8125rem;font-weight:700;color:' + phase.hex + ';margin:0 0 0.5rem;display:flex;align-items:center;gap:0.375rem">' + icon('shield', 14) + ' Como vou me cuidar amanhã?</label>' +
+          '<div><label style="font-size:0.8125rem;font-weight:700;color:' + phHex(phase) + ';margin:0 0 0.5rem;display:flex;align-items:center;gap:0.375rem">' + icon('shield', 14) + ' Como vou me cuidar amanhã?</label>' +
             '<input type="text" class="dl-input" id="input-selfcare" placeholder="Vou priorizar..." value="' + esc(dd.selfCareTomorrow || '') + '"></div>' +
         '</div></div>';
     }
@@ -2509,7 +2529,7 @@
         '<div style="padding:1.75rem"><div style="text-align:center;margin-bottom:1.25rem">' +
           '<span style="font-size:2.5rem">🌙</span>' +
           '<h3 style="font-family:var(--serif);font-size:1.25rem;color:' + T.ink + ';margin:0.5rem 0 0.375rem">Sentimos sua falta!</h3>' +
-          '<p style="font-size:0.875rem;color:' + T.muted + ';line-height:1.6;margin:0">Baseado no seu ciclo, você está no <strong style="color:' + phase.hex + '">Dia ' + state.suggestedDay + '</strong> hoje' +
+          '<p style="font-size:0.875rem;color:' + T.muted + ';line-height:1.6;margin:0">Baseado no seu ciclo, você está no <strong style="color:' + phHex(phase) + '">Dia ' + state.suggestedDay + '</strong> hoje' +
             (dayDiff > 0 ? ' (' + dayDiff + ' dia' + (dayDiff > 1 ? 's' : '') + ' passaram).' : '.') +
             '<br>Estação: ' + phase.season + ' · ' + phase.name + '</p></div>' +
           '<div style="display:flex;gap:0.75rem">' +
@@ -3257,7 +3277,8 @@
           var ctrl = new AbortController();
           state.oracleAbort = ctrl;
           showOracleModal('daily', true, '');
-          var prompt = 'Atue como uma sábia guia feminina e lunar (Oráculo). A usuária está no Dia ' + state.currentDay + ', fase de ' + ph.name + ' (' + ph.season + '). Contexto: ' + ph.desc + '. Dados: Físico:' + (dd.physicalLevel || 5) + '/10, Emocional:' + (dd.emotionalLevel || 5) + '/10, Humor:"' + (dd.mood || '?') + '", Intenção:"' + (dd.intention || '?') + '", Reflexão:"' + (dd.reflectionAnswer || 'silêncio') + '". Insight curto, místico mas prático. Tom acolhedor. Máximo 40 palavras. Português do Brasil.';
+          var grats = [dd.gratitude1, dd.gratitude2, dd.gratitude3].filter(Boolean).join('; ');
+          var prompt = 'Fase:' + ph.name + '(' + ph.season + '). Físico:' + (dd.physicalLevel || 5) + '/10, Emocional:' + (dd.emotionalLevel || 5) + '/10, Humor:"' + (dd.mood || '?') + '", Intenção:"' + (dd.intention || '?') + '", Reflexão:"' + (dd.reflectionAnswer || 'silêncio') + '", Gratidão:"' + (grats || 'vazio') + '", Aprendi:"' + (dd.learning || 'vazio') + '", Cuidado:"' + (dd.selfCareTomorrow || 'vazio') + '".';
           callGeminiOracle(prompt, ctrl.signal).then(function(insight) {
             if (insight !== null) {
               showOracleModal('daily', false, insight);
