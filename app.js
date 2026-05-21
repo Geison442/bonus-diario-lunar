@@ -398,137 +398,142 @@
     return scriptCache[src];
   }
 
-  // ─── EXPORT: Diário Completo (HTML elegante em nova aba) ───
+  // ─── EXPORT: Diário Completo (HTML premium em nova aba) ───
   function renderFullDiaryHTML() {
     var MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     var now = new Date();
     var mesNome = MESES[now.getMonth()];
     var ano = now.getFullYear();
+    var dataExport = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
     var nomeArquivo = 'Diario-Lunar-' + mesNome + '-' + ano + '.html';
+    var nomeUsuario = lsGet('userName') || 'Diário Lunar';
 
-    // Agrupa entradas por fase (1-4) na ordem dos dias
-    var entradasPorFase = { 1: [], 2: [], 3: [], 4: [] };
+    // Coleta todas as entradas em ordem cronológica
+    var entradas = [];
     for (var d = 1; d <= 28; d++) {
       var en = state.journalData[d] || {};
-      if (!(en.mood || en.intention || en.reflectionAnswer || en.gratitude1 || en.gratitude || en.learning || en.selfCareTomorrow)) continue;
-      var pid = getPhaseByDay(d);
-      entradasPorFase[pid].push({ day: d, e: en });
+      if (en.mood || en.intention || en.reflectionAnswer || en.gratitude1 || en.learning || en.selfCareTomorrow) {
+        entradas.push({ day: d, e: en, phase: PHASES[getPhaseByDay(d)] });
+      }
     }
 
-    var totalEntradas = entradasPorFase[1].length + entradasPorFase[2].length + entradasPorFase[3].length + entradasPorFase[4].length;
-
-    // Conquistas desbloqueadas
+    var totalEntradas = entradas.length;
     var conquistasDesb = getAchievementsState().filter(function(a) { return a.unlocked; });
+
+    function campo(label, valor) {
+      var vazio = !valor || valor.trim() === '';
+      return '<div class="secao">' +
+        '<div class="secao-label">' + label + '</div>' +
+        (vazio
+          ? '<div class="secao-texto vazia">(não preenchido)</div>'
+          : '<div class="secao-texto">' + esc(valor).replace(/\n/g,'<br>') + '</div>') +
+      '</div>';
+    }
 
     function entradaHTML(item) {
       var e = item.e;
-      var ph = PHASES[getPhaseByDay(item.day)];
-      var bloco = '<div class="entry">' +
-        '<div class="entry-header">' +
-          '<span class="entry-day">Dia ' + item.day + '</span>' +
-          '<span class="entry-phase-tag">' + esc(ph.name) + '</span>' +
-          (e.mood ? '<div class="entry-mood">' + esc(e.mood) + '</div>' : '') +
-        '</div>';
-      if (e.intention) bloco += '<div class="section-block"><h4>Intenção</h4><p>' + esc(e.intention) + '</p></div>';
-      if (e.reflectionAnswer) bloco += '<div class="section-block"><h4>Reflexão</h4><p>' + esc(e.reflectionAnswer).replace(/\n/g,'<br>') + '</p></div>';
+      var ph = item.phase;
       var grats = [];
       [1,2,3].forEach(function(n) { if (e['gratitude' + n]) grats.push(e['gratitude' + n]); });
-      if (grats.length) {
-        bloco += '<div class="section-block"><h4>Gratidão</h4><ul>';
-        grats.forEach(function(g) { bloco += '<li>' + esc(g) + '</li>'; });
-        bloco += '</ul></div>';
-      }
-      if (e.learning) bloco += '<div class="section-block"><h4>Aprendi sobre mim</h4><p>' + esc(e.learning) + '</p></div>';
-      if (e.selfCareTomorrow) bloco += '<div class="section-block"><h4>Cuidado para amanhã</h4><p>' + esc(e.selfCareTomorrow) + '</p></div>';
-      bloco += '</div>';
-      return bloco;
+      var gratTexto = grats.length ? grats.map(function(g,i) { return (i+1) + '. ' + g; }).join('\n') : '';
+      return '<div class="entrada">' +
+        '<div class="entrada-header">' +
+          '<span class="entrada-data">Dia ' + item.day + ' · ' + ph.season + '</span>' +
+          '<span class="entrada-fase">' + ph.name + '</span>' +
+          (e.mood ? '<span class="entrada-humor">' + esc(e.mood) + '</span>' : '') +
+        '</div>' +
+        campo('Intenção do dia', e.intention || '') +
+        campo('Reflexão', e.reflectionAnswer || '') +
+        campo('Gratidão', gratTexto) +
+        campo('Aprendi sobre mim', e.learning || '') +
+        campo('Autocuidado para amanhã', e.selfCareTomorrow || '') +
+      '</div>';
     }
 
-    var faseHTML = '';
-    [1,2,3,4].forEach(function(pid) {
-      var ph = PHASES[pid];
-      var items = entradasPorFase[pid];
-      if (!items.length) return;
-      faseHTML += '<div class="phase-block">' +
-        '<div class="phase-title">' + esc(ph.name) + ' — ' + esc(ph.season || '') + '</div>' +
-        '<div class="phase-meta">' + esc(ph.days) + ' · ' + items.length + ' registro(s)</div>' +
-        items.map(entradaHTML).join('') +
-      '</div>';
-    });
+    var entradasHTML = totalEntradas
+      ? entradas.map(entradaHTML).join('')
+      : '<div class="entrada"><div class="secao-texto vazia" style="text-align:center;padding:3rem 1rem">Seu diário ainda está em branco.<br>Comece a registrar e ele florescerá página a página. 🌸</div></div>';
 
     var conquistasHTML = '';
     if (conquistasDesb.length) {
-      conquistasHTML = '<div class="achievements-section"><h2>Conquistas desta jornada</h2><ul class="ach-list">' +
-        conquistasDesb.map(function(a) {
-          return '<li>' + a.emoji + ' <strong>' + esc(a.name) + '</strong> — ' + esc(a.desc) + '</li>';
-        }).join('') +
-      '</ul></div>';
+      conquistasHTML = '<div class="conquistas">' +
+        '<div class="conquistas-titulo">🏆 Conquistas desta jornada</div>' +
+        '<div class="conquistas-lista">' +
+          conquistasDesb.map(function(a) {
+            return '<div class="conquista-item">' + a.emoji + ' <strong>' + esc(a.name) + '</strong> — ' + esc(a.desc) + '</div>';
+          }).join('') +
+        '</div></div>';
     }
 
-    var emptyHTML = '';
-    if (totalEntradas === 0) {
-      emptyHTML = '<p class="empty-note">Seu diário ainda está em branco. Comece a registrar e ele florescerá página a página.</p>';
-    }
+    var css = [
+      '*{margin:0;padding:0;box-sizing:border-box}',
+      'body{font-family:Georgia,"Times New Roman",serif;background:#0A0A14;color:#FAF5FF;min-height:100vh;padding:48px 24px}',
+      '.container{max-width:680px;margin:0 auto}',
+      '.capa{text-align:center;padding:80px 0 60px;border-bottom:1px solid rgba(192,132,252,0.3);margin-bottom:60px}',
+      '.logo{font-size:56px;margin-bottom:20px;line-height:1}',
+      '.titulo{font-size:38px;color:#C084FC;margin-bottom:10px;letter-spacing:-0.02em;font-weight:700}',
+      '.subtitulo{font-size:16px;color:#9F67FA;margin-bottom:6px;font-style:italic}',
+      '.nome-usuario{font-size:22px;color:#A78BFA;margin-bottom:6px;font-weight:600}',
+      '.data-export{font-size:13px;color:#71717A;margin-bottom:24px}',
+      '.stats{display:flex;gap:32px;justify-content:center;flex-wrap:wrap}',
+      '.stat{text-align:center}',
+      '.stat-num{font-size:32px;font-weight:700;color:#C084FC;display:block;line-height:1}',
+      '.stat-label{font-size:11px;color:#71717A;text-transform:uppercase;letter-spacing:0.1em}',
+      '.entrada{margin-bottom:52px;padding-bottom:52px;border-bottom:1px solid rgba(192,132,252,0.15)}',
+      '.entrada:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}',
+      '.entrada-header{display:flex;align-items:center;gap:10px;margin-bottom:24px;flex-wrap:wrap}',
+      '.entrada-data{font-size:12px;color:#A78BFA;text-transform:uppercase;letter-spacing:0.08em}',
+      '.entrada-fase{font-size:11px;background:rgba(192,132,252,0.15);color:#C084FC;padding:3px 12px;border-radius:20px}',
+      '.entrada-humor{font-size:13px;color:#9F67FA}',
+      '.secao{margin-bottom:20px}',
+      '.secao-label{font-size:10px;color:#71717A;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;font-family:Arial,sans-serif;font-weight:700}',
+      '.secao-texto{font-size:16px;line-height:1.75;color:#EDE9FE}',
+      '.vazia{color:#52525B;font-style:italic;font-size:14px}',
+      '.conquistas{margin-top:64px;padding-top:48px;border-top:1px solid rgba(192,132,252,0.3)}',
+      '.conquistas-titulo{font-size:22px;color:#C084FC;margin-bottom:24px;font-weight:700}',
+      '.conquistas-lista{display:flex;flex-direction:column;gap:12px}',
+      '.conquista-item{font-size:14px;color:#EDE9FE;padding:12px 16px;background:rgba(192,132,252,0.08);border-radius:12px;border:1px solid rgba(192,132,252,0.2)}',
+      '.rodape{margin-top:80px;padding-top:24px;border-top:1px solid rgba(192,132,252,0.2);text-align:center;font-size:12px;color:#52525B}',
+      '@media print{',
+      'body{background:#fff;color:#1C1917;padding:20px}',
+      '.titulo{color:#4C1D95}.subtitulo{color:#6D28D9}.nome-usuario{color:#5B21B6}',
+      '.data-export{color:#78716C}.stat-num{color:#4C1D95}.stat-label{color:#78716C}',
+      '.capa{border-bottom-color:#E9D5FF}.entrada{border-bottom-color:#EDE9FE}',
+      '.entrada-data{color:#5B21B6}.entrada-fase{background:#F3E8FF;color:#5B21B6}',
+      '.entrada-humor{color:#6D28D9}.secao-texto{color:#1C1917}.vazia{color:#A8A29E}',
+      '.conquistas{border-top-color:#E9D5FF}.conquistas-titulo{color:#4C1D95}',
+      '.conquista-item{background:#F3E8FF;border-color:#E9D5FF;color:#1C1917}',
+      '.rodape{color:#A8A29E;border-top-color:#E9D5FF}',
+      '}'
+    ].join('');
 
     var doc = '<!DOCTYPE html><html lang="pt-BR"><head>' +
       '<meta charset="UTF-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1.0">' +
-      '<title>Diário Lunar — ' + esc(mesNome) + ' ' + ano + '</title>' +
-      '<style>' +
-        '*{box-sizing:border-box;margin:0;padding:0}' +
-        'body{font-family:Georgia,"Times New Roman",Times,serif;background:#fff;color:#1C1917;font-size:14px;line-height:1.7;max-width:600px;margin:0 auto;padding:40px}' +
-        'h1{font-size:26px;font-weight:700;margin-bottom:4px}' +
-        'h2{font-size:18px;font-weight:700;margin:32px 0 8px}' +
-        'h3{font-size:15px;font-weight:700;margin:24px 0 6px}' +
-        'h4{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#57534E;margin:12px 0 4px}' +
-        'p{margin-bottom:8px}' +
-        '.page-header{border-bottom:2px solid #1C1917;padding-bottom:12px;margin-bottom:32px}' +
-        '.page-header .subtitle{font-style:italic;color:#57534E;font-size:13px;margin:2px 0 0}' +
-        '.page-header .meta{font-size:12px;color:#78716C;margin-top:6px}' +
-        '.stats-row{display:flex;gap:24px;margin-top:12px;flex-wrap:wrap}' +
-        '.stat-item{font-size:12px;color:#57534E}' +
-        '.stat-item strong{color:#1C1917;font-size:18px;display:block}' +
-        '.phase-block{margin:32px 0;border-left:3px solid #E7E5E4;padding-left:16px}' +
-        '.phase-title{font-size:16px;font-weight:700;margin-bottom:4px}' +
-        '.phase-meta{font-size:11px;color:#78716C;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:16px}' +
-        '.entry{margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #E7E5E4}' +
-        '.entry:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}' +
-        '.entry-header{margin-bottom:10px}' +
-        '.entry-day{font-size:15px;font-weight:700;color:#1C1917}' +
-        '.entry-phase-tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#57534E;margin-left:8px}' +
-        '.entry-mood{font-size:13px;color:#57534E;margin-top:2px}' +
-        '.section-block{margin:10px 0}' +
-        '.section-block p,.section-block li{font-size:14px;color:#1C1917;line-height:1.65}' +
-        '.section-block ul{list-style:none;padding:0}' +
-        '.section-block li{padding:2px 0}' +
-        '.section-block li::before{content:"♡ ";color:#78716C}' +
-        '.achievements-section{margin-top:40px;padding-top:24px;border-top:2px solid #E7E5E4}' +
-        '.ach-list{list-style:none;padding:0;margin-top:12px}' +
-        '.ach-list li{padding:6px 0;border-bottom:1px solid #F5F5F4;font-size:13px}' +
-        '.ach-list li:last-child{border-bottom:none}' +
-        '.empty-note{color:#78716C;font-style:italic;padding:24px 0}' +
-        '.footer{margin-top:48px;padding-top:16px;border-top:1px solid #E7E5E4;font-size:11px;color:#78716C;text-align:center}' +
-        '@media print{body{padding:20px}h2{page-break-before:auto}.phase-block{page-break-inside:avoid}}' +
-      '</style></head><body>' +
-        '<div class="page-header">' +
-          '<h1>Diário Lunar</h1>' +
-          '<p class="subtitle">Jornada cíclica · ' + esc(mesNome) + ' ' + ano + '</p>' +
-          '<p class="meta">Gerado em ' + esc(now.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })) + '</p>' +
-          '<div class="stats-row">' +
-            '<div class="stat-item"><strong>' + totalEntradas + '</strong>registros</div>' +
-            '<div class="stat-item"><strong>' + conquistasDesb.length + '</strong>conquistas</div>' +
+      '<title>Diário Lunar — ' + esc(nomeUsuario) + '</title>' +
+      '<style>' + css + '</style>' +
+      '</head><body><div class="container">' +
+        '<div class="capa">' +
+          '<div class="logo">🌙</div>' +
+          '<div class="titulo">Diário Lunar</div>' +
+          '<div class="subtitulo">Jornada cíclica · ' + esc(mesNome) + ' ' + ano + '</div>' +
+          '<div class="nome-usuario">' + esc(nomeUsuario) + '</div>' +
+          '<div class="data-export">Exportado em ' + esc(dataExport) + '</div>' +
+          '<div class="stats">' +
+            '<div class="stat"><span class="stat-num">' + totalEntradas + '</span><span class="stat-label">registros</span></div>' +
+            '<div class="stat"><span class="stat-num">' + conquistasDesb.length + '</span><span class="stat-label">conquistas</span></div>' +
           '</div>' +
         '</div>' +
-        emptyHTML + faseHTML + conquistasHTML +
-        '<div class="footer">Diário Lunar · ' + esc(mesNome) + ' ' + ano + '</div>' +
-      '</body></html>';
+        entradasHTML +
+        conquistasHTML +
+        '<div class="rodape">Diário Lunar · ' + esc(nomeUsuario) + ' · ' + esc(mesNome) + ' ' + ano + '</div>' +
+      '</div></body></html>';
 
     try {
       var blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
       var url = URL.createObjectURL(blob);
       var w = window.open(url, '_blank');
       if (!w) {
-        // fallback: força download se popup bloqueado
         var a = document.createElement('a');
         a.href = url;
         a.download = nomeArquivo;
@@ -1593,11 +1598,12 @@
     var todayStr = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
     // Capitaliza apenas a primeira letra do dia da semana, mantém "de abril" minúsculo
     todayStr = todayStr.charAt(0).toUpperCase() + todayStr.slice(1);
+    var isLight = T.ink.charAt(1) === '1'; // true apenas no tema Pétala Branca
 
     var html = '<div style="max-width:56rem;margin:0 auto;display:flex;flex-direction:column;gap:1.25rem;padding-bottom:1.5rem">';
 
     // Hero
-    html += '<div class="hero-section" style="border-color:' + phase.border + ';background:linear-gradient(145deg,' + phase.grad1 + ',' + phase.grad2 + ')">' +
+    html += '<div class="hero-section" style="border-color:' + (isLight ? T.border : phase.border) + ';background:linear-gradient(145deg,' + (isLight ? T.cream : phase.grad1) + ',' + (isLight ? T.parchment : phase.grad2) + ')">' +
       '<div class="hero-pad" style="padding:1.75rem">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;gap:0.75rem">' +
           '<div style="flex:1;min-width:0">' +
@@ -1608,24 +1614,24 @@
             '<p style="font-size:0.8125rem;color:' + T.muted + ';margin:0">' + phase.season + ' · ' + phase.days + '</p>' +
             '<p style="font-size:0.75rem;color:' + T.faint + ';margin:0.25rem 0 0">' + getDynamicGreeting() + ' · ' + todayStr + '</p>' +
           '</div>' +
-          '<div style="padding:0.875rem;border-radius:1.25rem;background:rgba(255,255,255,0.08);backdrop-filter:blur(8px);border:1px solid rgba(192,132,252,0.3);flex-shrink:0">' + icon(phase.icon, 28, phase.hex) + '</div>' +
+          '<div style="padding:0.875rem;border-radius:1.25rem;background:' + T.soft + ';backdrop-filter:blur(8px);border:1px solid ' + T.border + ';flex-shrink:0">' + icon(phase.icon, 28, phase.hex) + '</div>' +
         '</div>' +
         '<p style="color:' + T.ink + ';line-height:1.7;margin-bottom:1.25rem;font-weight:500;font-size:0.9rem">' + phase.desc + '</p>' +
-        '<div style="margin-bottom:1.25rem;padding:1rem 1.125rem;background:rgba(255,255,255,0.06);border-radius:1rem;border:1px solid rgba(192,132,252,0.2);backdrop-filter:blur(8px)">' +
+        '<div style="margin-bottom:1.25rem;padding:1rem 1.125rem;background:' + T.cream + ';border-radius:1rem;border:1px solid ' + T.borderLt + ';backdrop-filter:blur(8px)">' +
           '<p style="font-size:0.7rem;color:' + T.muted + ';text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin:0 0 0.5rem">✨ Afirmação do Dia</p>' +
           '<p style="font-family:var(--serif);font-size:1rem;color:' + T.ink + ';font-style:italic;line-height:1.7;margin:0">"' + phase.affirmation + '"</p>' +
         '</div>';
 
     // Rituals + Focus
     html += '<div class="grid-2col" style="margin-bottom:1.25rem">' +
-      '<div style="background:rgba(255,255,255,0.06);border-radius:1rem;padding:0.875rem;border:1px solid rgba(192,132,252,0.2)">' +
+      '<div style="background:' + T.cream + ';border-radius:1rem;padding:0.875rem;border:1px solid ' + T.borderLt + '">' +
         '<p style="font-size:0.7rem;font-weight:700;color:' + T.muted + ';text-transform:uppercase;letter-spacing:0.1em;margin:0 0 0.625rem">🌿 Rituais</p>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:0.375rem">' + phase.rituals.map(function(r) { return tag(r, 'rgba(124,58,237,0.25)', T.ink); }).join('') + '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:0.375rem">' + phase.rituals.map(function(r) { return tag(r, T.soft, T.ink); }).join('') + '</div>' +
       '</div>' +
-      '<div style="background:rgba(255,255,255,0.06);border-radius:1rem;padding:0.875rem;border:1px solid rgba(192,132,252,0.2)">' +
+      '<div style="background:' + T.cream + ';border-radius:1rem;padding:0.875rem;border:1px solid ' + T.borderLt + '">' +
         '<p style="font-size:0.7rem;font-weight:700;color:' + T.muted + ';text-transform:uppercase;letter-spacing:0.1em;margin:0 0 0.625rem">🎯 Foco</p>' +
         '<p style="font-weight:700;color:' + T.ink + ';font-size:0.875rem;line-height:1.55;margin:0 0 0.5rem">' + phase.focus + '</p>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:0.375rem">' + phase.keywords.map(function(k) { return tag(k, 'rgba(124,58,237,0.25)', T.ink); }).join('') + '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:0.375rem">' + phase.keywords.map(function(k) { return tag(k, T.soft, T.ink); }).join('') + '</div>' +
       '</div>' +
     '</div>';
 
@@ -1640,7 +1646,7 @@
     [1,2,3,4].forEach(function(id) {
       var p = PHASES[id];
       var isCurrent = id === phaseId;
-      html += '<button type="button" data-phase-start="' + id + '" style="position:relative;padding:0.875rem;border-radius:1.25rem;border:2px solid ' + (isCurrent ? p.border : T.border) + ';background:' + (isCurrent ? p.bg : T.white) + ';cursor:pointer;text-align:left;transition:all 0.2s;box-shadow:' + (isCurrent ? '0 4px 16px rgba(0,0,0,0.07)' : 'none') + ';transform:' + (isCurrent ? 'scale(1.04)' : 'scale(1)') + ';font-family:var(--sans);touch-action:manipulation">';
+      html += '<button type="button" data-phase-start="' + id + '" style="position:relative;padding:0.875rem;border-radius:1.25rem;border:2px solid ' + (isCurrent ? p.border : T.border) + ';background:' + (isCurrent ? (isLight ? T.cream : p.bg) : T.white) + ';cursor:pointer;text-align:left;transition:all 0.2s;box-shadow:' + (isCurrent ? '0 4px 16px rgba(0,0,0,0.07)' : 'none') + ';transform:' + (isCurrent ? 'scale(1.04)' : 'scale(1)') + ';font-family:var(--sans);touch-action:manipulation">';
       if (isCurrent) html += '<span style="position:absolute;top:-0.5rem;right:-0.375rem;background:' + T.rose + ';color:' + T.ink + ';font-size:0.5rem;font-weight:800;padding:0.15rem 0.4rem;border-radius:9999px;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap">ATUAL</span>';
       html += icon(p.icon, 16, isCurrent ? p.hex : T.faint, 'margin-bottom:0.375rem;display:block') +
         '<p class="phase-btn-label" style="color:' + (isCurrent ? p.hex : T.muted) + '">' + p.name + '</p>' +
@@ -1706,6 +1712,7 @@
   // ─────────────────────────────────────────────────────────────────────────────
   function renderGuide() {
     var phaseId = getPhaseByDay(state.currentDay);
+    var isLight = T.ink.charAt(1) === '1';
     var html = '<div style="max-width:56rem;margin:0 auto;display:flex;flex-direction:column;gap:1.5rem;padding-bottom:1.5rem">' +
       '<div style="text-align:center;padding-top:0.5rem">' +
         '<h2 style="font-family:var(--serif);font-size:clamp(1.75rem,5vw,2.5rem);color:' + T.ink + ';font-weight:700;margin:0 0 0.5rem">Guia das 4 Fases</h2>' +
@@ -1716,18 +1723,18 @@
       var p = PHASES[id];
       var isCurrent = id === phaseId;
       html += '<div style="border-radius:1.5rem;overflow:hidden;border:2px solid ' + (isCurrent ? p.border : T.border) + ';background:' + T.white + ';box-shadow:' + (isCurrent ? '0 8px 32px rgba(0,0,0,0.07)' : '0 1px 4px rgba(0,0,0,0.04)') + '">';
-      if (isCurrent) html += '<div style="height:4px;background:linear-gradient(90deg,' + p.grad1 + ',' + p.hex + ')"></div>';
-      html += '<div style="padding:1.5rem;' + (isCurrent ? 'background:linear-gradient(145deg,' + p.grad1 + '60,transparent)' : '') + '">' +
+      if (isCurrent) html += '<div style="height:4px;background:linear-gradient(90deg,' + (isLight ? T.cream : p.grad1) + ',' + p.hex + ')"></div>';
+      html += '<div style="padding:1.5rem;' + (isCurrent ? 'background:linear-gradient(145deg,' + (isLight ? T.cream : p.grad1 + '60') + ',transparent)' : '') + '">' +
         '<div class="guide-card-inner">' +
           '<div style="display:flex;flex-direction:column;align-items:center;min-width:9rem;padding-top:0.5rem">' +
-            '<div style="padding:1.25rem;border-radius:50%;background:' + p.bg + ';border:2px solid ' + p.border + ';margin-bottom:0.875rem">' + icon(p.icon, 32, p.hex) + '</div>' +
+            '<div style="padding:1.25rem;border-radius:50%;background:' + (isLight ? T.cream : p.bg) + ';border:2px solid ' + p.border + ';margin-bottom:0.875rem">' + icon(p.icon, 32, p.hex) + '</div>' +
             '<h3 style="font-family:var(--serif);font-size:1.375rem;font-weight:700;color:' + phHex(p) + ';margin:0 0 0.25rem">' + p.name + '</h3>' +
             '<p style="font-size:0.7rem;color:' + T.faint + ';text-transform:uppercase;letter-spacing:0.1em;margin:0 0 0.625rem">' + p.season + '</p>' +
-            tag(p.days, p.bg, p.hex) +
+            tag(p.days, isLight ? T.cream : p.bg, p.hex) +
           '</div>' +
           '<div style="flex:1;min-width:14rem;display:flex;flex-direction:column;gap:1rem">' +
             '<p style="color:' + T.ink + ';line-height:1.7;font-size:0.9375rem;margin:0">' + p.desc + '</p>' +
-            '<div style="padding:1rem;border-radius:1rem;background:' + p.bg + ';border:1px solid ' + p.border + '">' +
+            '<div style="padding:1rem;border-radius:1rem;background:' + (isLight ? T.cream : p.bg) + ';border:1px solid ' + p.border + '">' +
               '<p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:' + T.muted + ';margin:0 0 0.5rem">✨ Afirmação</p>' +
               '<p style="font-family:var(--serif);font-size:0.9375rem;font-style:italic;color:' + p.hex + ';margin:0">"' + p.affirmation + '"</p>' +
             '</div>' +
@@ -1960,6 +1967,7 @@
   // VIEW: SÍNTESE
   // ─────────────────────────────────────────────────────────────────────────────
   function renderSummary() {
+    var isLight = T.ink.charAt(1) === '1';
     var days = [];
     for (var i = 1; i <= 28; i++) days.push(i);
     var moodCounts = {};
@@ -2058,7 +2066,7 @@
       '<div class="grid-lunar">';
 
     // Lunar calendar
-    html += '<div style="background:linear-gradient(145deg,#1C0B3D,#26184A);border-radius:1.25rem;padding:1.25rem;color:' + T.ink + '">' +
+    html += '<div style="background:linear-gradient(145deg,' + T.cream + ',' + T.surface + ');border-radius:1.25rem;padding:1.25rem;color:' + T.ink + ';border:1px solid ' + T.border + '">' +
       '<h4 style="font-family:var(--serif);font-size:1.0625rem;font-weight:700;text-align:center;margin-bottom:1.125rem;display:flex;align-items:center;justify-content:center;gap:0.5rem">' + icon('moon', 18) + ' Ciclos Lunares 2026</h4>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.875rem">';
     [
@@ -2068,14 +2076,14 @@
       html += '<div><p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;opacity:0.7;margin:0 0 0.625rem">' + group.title + '</p>' +
         '<div style="display:flex;flex-direction:column;gap:0.3rem;max-height:12rem;overflow-y:auto;-webkit-overflow-scrolling:touch">';
       group.data.forEach(function(m) {
-        html += '<div style="background:rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.4rem 0.625rem;font-size:0.75rem">' +
+        html += '<div style="background:' + T.soft + ';border-radius:0.5rem;padding:0.4rem 0.625rem;font-size:0.75rem">' +
           '<p style="font-weight:700;margin:0">' + parseLocalDate(m.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) + '</p>' +
           (group.sub && m.name ? '<p style="opacity:0.6;font-size:0.65rem;margin:0">' + m.name + '</p>' : '') + '</div>';
       });
       html += '</div></div>';
     });
     html += '</div>' +
-      '<div style="margin-top:0.875rem;padding:0.625rem;background:rgba(255,255,255,0.1);border-radius:0.75rem;font-size:0.7rem;text-align:center;opacity:0.85;font-style:italic">' + icon('sparkles', 11, '', 'display:inline;margin-right:0.25rem') + ' Novas: plantar intenções · Cheias: celebrar colheitas</div></div>';
+      '<div style="margin-top:0.875rem;padding:0.625rem;background:' + T.soft + ';border-radius:0.75rem;font-size:0.7rem;text-align:center;opacity:0.85;font-style:italic">' + icon('sparkles', 11, '', 'display:inline;margin-right:0.25rem') + ' Novas: plantar intenções · Cheias: celebrar colheitas</div></div>';
 
     // Day mosaic
     html += '<div><p style="font-size:0.8125rem;color:' + T.faint + ';margin:0 0 0.875rem">Toque em qualquer dia para ver ou editar.</p>' +
@@ -2088,18 +2096,18 @@
       var energy = de.physicalLevel || 0;
       var hasEntry = de.mood || de.intention || de.reflectionAnswer;
       var isToday = day === state.currentDay;
-      var bgMap = { 1: PHASES[1].bg, 2: PHASES[2].bg, 3: PHASES[3].bg, 4: PHASES[4].bg };
+      var bgMap = isLight ? { 1: '#EDE9FE', 2: '#D1FAE5', 3: '#F3E8FF', 4: '#FEF3C7' } : { 1: PHASES[1].bg, 2: PHASES[2].bg, 3: PHASES[3].bg, 4: PHASES[4].bg };
       html += '<button type="button" data-mosaic-day="' + day + '" style="aspect-ratio:1;border-radius:0.625rem;background:' + bgMap[ph] + ';display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid ' + (isToday ? T.rose : hasEntry ? T.border : 'transparent') + ';cursor:pointer;transition:all 0.15s;transform:' + (isToday ? 'scale(1.08)' : 'scale(1)') + ';box-shadow:' + (isToday ? '0 4px 12px ' + T.rose + '30' : 'none') + ';position:relative;font-family:var(--sans);touch-action:manipulation">';
       if (isToday) html += '<span style="position:absolute;top:-0.375rem;right:-0.375rem;width:0.5rem;height:0.5rem;background:' + T.rose + ';border:2px solid ' + T.surface + ';border-radius:50%"></span>';
-      html += '<span style="font-size:0.5rem;font-weight:700;position:absolute;top:0.15rem;left:0.25rem;color:' + (isToday ? T.rose : hasEntry ? T.muted : 'rgba(255,255,255,0.5)') + '">' + day + '</span>';
+      html += '<span style="font-size:0.5rem;font-weight:700;position:absolute;top:0.15rem;left:0.25rem;color:' + (isToday ? T.rose : hasEntry ? T.muted : T.faint) + '">' + day + '</span>';
       if (mood) html += '<span style="font-size:0.875rem">' + mood.split(' ')[0] + '</span>';
-      else html += '<span style="width:0.3rem;height:0.3rem;border-radius:50%;background:rgba(255,255,255,0.2)"></span>';
-      if (parseInt(energy) > 0) html += '<div style="position:absolute;bottom:0.2rem;width:60%;height:0.2rem;background:rgba(255,255,255,0.7);border-radius:9999px;overflow:hidden"><div style="height:100%;background:' + T.rose + '90;border-radius:9999px;width:' + ((parseInt(energy)/10)*100) + '%"></div></div>';
+      else html += '<span style="width:0.3rem;height:0.3rem;border-radius:50%;background:' + T.soft + '"></span>';
+      if (parseInt(energy) > 0) html += '<div style="position:absolute;bottom:0.2rem;width:60%;height:0.2rem;background:' + T.border + ';border-radius:9999px;overflow:hidden"><div style="height:100%;background:' + T.rose + '90;border-radius:9999px;width:' + ((parseInt(energy)/10)*100) + '%"></div></div>';
       html += '</button>';
     });
     html += '</div>';
     html += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;margin-top:0.875rem">';
-    [{ bg: PHASES[1].bg, l: 'Renovação' }, { bg: PHASES[2].bg, l: 'Crescimento' }, { bg: PHASES[3].bg, l: 'Força' }, { bg: PHASES[4].bg, l: 'Sabedoria' }].forEach(function(item) {
+    (isLight ? [{ bg: '#EDE9FE', l: 'Renovação' }, { bg: '#D1FAE5', l: 'Crescimento' }, { bg: '#F3E8FF', l: 'Força' }, { bg: '#FEF3C7', l: 'Sabedoria' }] : [{ bg: PHASES[1].bg, l: 'Renovação' }, { bg: PHASES[2].bg, l: 'Crescimento' }, { bg: PHASES[3].bg, l: 'Força' }, { bg: PHASES[4].bg, l: 'Sabedoria' }]).forEach(function(item) {
       html += '<span style="display:flex;align-items:center;gap:0.375rem;font-size:0.7rem;color:' + T.muted + '"><span style="width:0.75rem;height:0.75rem;border-radius:0.25rem;background:' + item.bg + ';border:1px solid ' + T.border + '"></span>' + item.l + '</span>';
     });
     html += '</div></div></div></div>';
