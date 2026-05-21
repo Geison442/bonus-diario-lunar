@@ -1603,7 +1603,7 @@
     var html = '<div style="max-width:56rem;margin:0 auto;display:flex;flex-direction:column;gap:1.25rem;padding-bottom:1.5rem">';
 
     // Hero
-    html += '<div class="hero-section" style="border-color:' + (isLight ? T.border : phase.border) + ';background:linear-gradient(145deg,' + (isLight ? T.cream : phase.grad1) + ',' + (isLight ? T.parchment : phase.grad2) + ')">' +
+    html += '<div class="hero-section" style="border-color:' + (isLight ? T.border : phase.border) + ';background:' + (isLight ? T.white : 'linear-gradient(145deg,' + phase.grad1 + ',' + phase.grad2 + ')') + '">' +
       '<div class="hero-pad" style="padding:1.75rem">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;gap:0.75rem">' +
           '<div style="flex:1;min-width:0">' +
@@ -1617,21 +1617,21 @@
           '<div style="padding:0.875rem;border-radius:1.25rem;background:' + T.soft + ';backdrop-filter:blur(8px);border:1px solid ' + T.border + ';flex-shrink:0">' + icon(phase.icon, 28, phase.hex) + '</div>' +
         '</div>' +
         '<p style="color:' + T.ink + ';line-height:1.7;margin-bottom:1.25rem;font-weight:500;font-size:0.9rem">' + phase.desc + '</p>' +
-        '<div style="margin-bottom:1.25rem;padding:1rem 1.125rem;background:' + T.cream + ';border-radius:1rem;border:1px solid ' + T.borderLt + ';backdrop-filter:blur(8px)">' +
+        '<div style="margin-bottom:1.25rem;padding:1rem 1.125rem;background:' + (isLight ? T.white : T.cream) + ';border-radius:1rem;border:1px solid ' + T.borderLt + ';backdrop-filter:blur(8px)">' +
           '<p style="font-size:0.7rem;color:' + T.muted + ';text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin:0 0 0.5rem">✨ Afirmação do Dia</p>' +
           '<p style="font-family:var(--serif);font-size:1rem;color:' + T.ink + ';font-style:italic;line-height:1.7;margin:0">"' + phase.affirmation + '"</p>' +
         '</div>';
 
     // Rituals + Focus
     html += '<div class="grid-2col" style="margin-bottom:1.25rem">' +
-      '<div style="background:' + T.cream + ';border-radius:1rem;padding:0.875rem;border:1px solid ' + T.borderLt + '">' +
+      '<div style="background:' + (isLight ? T.white : T.cream) + ';border-radius:1rem;padding:0.875rem;border:1px solid ' + T.borderLt + '">' +
         '<p style="font-size:0.7rem;font-weight:700;color:' + T.muted + ';text-transform:uppercase;letter-spacing:0.1em;margin:0 0 0.625rem">🌿 Rituais</p>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:0.375rem">' + phase.rituals.map(function(r) { return tag(r, T.soft, T.ink); }).join('') + '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:0.375rem">' + phase.rituals.map(function(r) { return tag(r, isLight ? 'rgba(124,58,237,0.1)' : T.soft, T.ink); }).join('') + '</div>' +
       '</div>' +
-      '<div style="background:' + T.cream + ';border-radius:1rem;padding:0.875rem;border:1px solid ' + T.borderLt + '">' +
+      '<div style="background:' + (isLight ? T.white : T.cream) + ';border-radius:1rem;padding:0.875rem;border:1px solid ' + T.borderLt + '">' +
         '<p style="font-size:0.7rem;font-weight:700;color:' + T.muted + ';text-transform:uppercase;letter-spacing:0.1em;margin:0 0 0.625rem">🎯 Foco</p>' +
         '<p style="font-weight:700;color:' + T.ink + ';font-size:0.875rem;line-height:1.55;margin:0 0 0.5rem">' + phase.focus + '</p>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:0.375rem">' + phase.keywords.map(function(k) { return tag(k, T.soft, T.ink); }).join('') + '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:0.375rem">' + phase.keywords.map(function(k) { return tag(k, isLight ? 'rgba(124,58,237,0.1)' : T.soft, T.ink); }).join('') + '</div>' +
       '</div>' +
     '</div>';
 
@@ -1646,7 +1646,7 @@
     [1,2,3,4].forEach(function(id) {
       var p = PHASES[id];
       var isCurrent = id === phaseId;
-      html += '<button type="button" data-phase-start="' + id + '" style="position:relative;padding:0.875rem;border-radius:1.25rem;border:2px solid ' + (isCurrent ? p.border : T.border) + ';background:' + (isCurrent ? (isLight ? T.cream : p.bg) : T.white) + ';cursor:pointer;text-align:left;transition:all 0.2s;box-shadow:' + (isCurrent ? '0 4px 16px rgba(0,0,0,0.07)' : 'none') + ';transform:' + (isCurrent ? 'scale(1.04)' : 'scale(1)') + ';font-family:var(--sans);touch-action:manipulation">';
+      html += '<button type="button" data-phase-start="' + id + '" style="position:relative;padding:0.875rem;border-radius:1.25rem;border:2px solid ' + (isCurrent ? p.border : T.border) + ';background:' + (isCurrent ? (isLight ? T.white : p.bg) : T.white) + ';cursor:pointer;text-align:left;transition:all 0.2s;box-shadow:' + (isCurrent ? '0 4px 16px rgba(0,0,0,0.07)' : 'none') + ';transform:' + (isCurrent ? 'scale(1.04)' : 'scale(1)') + ';font-family:var(--sans);touch-action:manipulation">';
       if (isCurrent) html += '<span style="position:absolute;top:-0.5rem;right:-0.375rem;background:' + T.rose + ';color:' + T.ink + ';font-size:0.5rem;font-weight:800;padding:0.15rem 0.4rem;border-radius:9999px;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap">ATUAL</span>';
       html += icon(p.icon, 16, isCurrent ? p.hex : T.faint, 'margin-bottom:0.375rem;display:block') +
         '<p class="phase-btn-label" style="color:' + (isCurrent ? p.hex : T.muted) + '">' + p.name + '</p>' +
@@ -1727,14 +1727,14 @@
       html += '<div style="padding:1.5rem;' + (isCurrent ? 'background:linear-gradient(145deg,' + (isLight ? T.cream : p.grad1 + '60') + ',transparent)' : '') + '">' +
         '<div class="guide-card-inner">' +
           '<div style="display:flex;flex-direction:column;align-items:center;min-width:9rem;padding-top:0.5rem">' +
-            '<div style="padding:1.25rem;border-radius:50%;background:' + (isLight ? T.cream : p.bg) + ';border:2px solid ' + p.border + ';margin-bottom:0.875rem">' + icon(p.icon, 32, p.hex) + '</div>' +
+            '<div style="padding:1.25rem;border-radius:50%;background:' + (isLight ? T.white : p.bg) + ';border:2px solid ' + p.border + ';margin-bottom:0.875rem">' + icon(p.icon, 32, p.hex) + '</div>' +
             '<h3 style="font-family:var(--serif);font-size:1.375rem;font-weight:700;color:' + phHex(p) + ';margin:0 0 0.25rem">' + p.name + '</h3>' +
             '<p style="font-size:0.7rem;color:' + T.faint + ';text-transform:uppercase;letter-spacing:0.1em;margin:0 0 0.625rem">' + p.season + '</p>' +
-            tag(p.days, isLight ? T.cream : p.bg, p.hex) +
+            tag(p.days, isLight ? 'rgba(124,58,237,0.1)' : p.bg, p.hex) +
           '</div>' +
           '<div style="flex:1;min-width:14rem;display:flex;flex-direction:column;gap:1rem">' +
             '<p style="color:' + T.ink + ';line-height:1.7;font-size:0.9375rem;margin:0">' + p.desc + '</p>' +
-            '<div style="padding:1rem;border-radius:1rem;background:' + (isLight ? T.cream : p.bg) + ';border:1px solid ' + p.border + '">' +
+            '<div style="padding:1rem;border-radius:1rem;background:' + (isLight ? T.white : p.bg) + ';border:1px solid ' + p.border + '">' +
               '<p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:' + T.muted + ';margin:0 0 0.5rem">✨ Afirmação</p>' +
               '<p style="font-family:var(--serif);font-size:0.9375rem;font-style:italic;color:' + p.hex + ';margin:0">"' + p.affirmation + '"</p>' +
             '</div>' +
