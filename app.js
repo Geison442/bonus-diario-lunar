@@ -1140,6 +1140,8 @@
           var target = (ev.state && ev.state.view) || 'intro';
           var allowed = ['intro','guide','daily','weekly','summary','timer'];
           if (allowed.indexOf(target) === -1) target = 'intro';
+          // No timer, se o alvo coincide com a view atual, voltar trava — força ir para 'daily'
+          if (target === state.view && state.view === 'timer') target = 'daily';
           if (target !== state.view) {
             self.cleanupScreen(self.state.currentScreen);
             self.state.currentScreen = target;
@@ -2557,6 +2559,7 @@
     var onbDate = '';
     var onbFeeling = '';
     var onbIntent = '';
+    var _onbDelegated = false;
 
     function renderOnb() {
       var feelings = [['😴', 'Muito cansada, precisando descansar'], ['✨', 'Mais leve, curiosa e criativa'], ['🦁', 'Confiante e cheia de energia'], ['🌊', 'Sensível, intuitiva ou irritadiça']];
@@ -2616,9 +2619,12 @@
         var dateInput = document.getElementById('onb-date');
         if (dateInput) dateInput.onchange = function(e) { onbDate = e.target.value; renderOnb(); };
       }
-      if (onbStep === 1) {
-        document.querySelectorAll('.onb-feeling-btn').forEach(function(btn) {
-          btn.onclick = function() { onbFeeling = btn.getAttribute('data-feeling'); renderOnb(); };
+      if (onbStep === 1 && !_onbDelegated) {
+        // Event delegation no container — evita race entre innerHTML e attach de listeners
+        _onbDelegated = true;
+        el.addEventListener('click', function(e) {
+          var btn = e.target.closest('.onb-feeling-btn');
+          if (btn) { onbFeeling = btn.getAttribute('data-feeling'); renderOnb(); }
         });
       }
       if (onbStep === 2) {
