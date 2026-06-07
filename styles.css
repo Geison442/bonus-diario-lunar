@@ -94,6 +94,13 @@ input[type=range]::-moz-range-thumb {
 @keyframes slideUp  { from { opacity:0; transform:translateY(2rem); } to { opacity:1; transform:translateY(0);  } }
 @keyframes spin     { to { transform: rotate(360deg); } }
 @keyframes pulse    { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.7; transform:scale(1.15); } }
+/* Mandala — entrada progressiva do centro para fora */
+@keyframes mandalaGrow { to { stroke-dashoffset: 0; } }
+@keyframes mandalaFade { from { opacity:0; transform:scale(0.5); } to { opacity:1; transform:scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .mandala-stage line { animation: none !important; stroke-dashoffset: 0 !important; }
+  .mandala-stage circle { animation: none !important; opacity: 1 !important; }
+}
 @keyframes fadeInDown {
   from { opacity:0; transform:translateX(-50%) translateY(-8px); }
   to   { opacity:1; transform:translateX(-50%) translateY(0); }

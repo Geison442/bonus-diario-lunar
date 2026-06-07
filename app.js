@@ -1209,70 +1209,235 @@
     return '<span class="tag" style="background:' + bg + ';color:' + color + '">' + esc(text) + '</span>';
   }
 
-  // ─── MANDALA SVG ───
-  function renderMandala(size, clickable) {
-    var mobile = isMobile();
-    var actualSize = mobile ? Math.min(size, window.innerWidth - 80) : size;
-    var days = [];
-    for (var i = 1; i <= 28; i++) days.push(i);
-    var filled = getDayEntries(state.journalData).filter(function(p) { var d = p[1]; return d && (d.physicalLevel || d.mood); }).length;
-    var pct = filled / 28;
-    var moodCounts = {};
-    getDayEntries(state.journalData).forEach(function(p) { var d = p[1]; if (d && d.mood) moodCounts[d.mood] = (moodCounts[d.mood] || 0) + 1; });
-    var topMood = Object.entries(moodCounts).sort(function(a,b) { return b[1]-a[1]; })[0];
-    var topEmoji = topMood ? (topMood[0].split(' ')[0]) : '✨';
-    var phaseColors = { 1: PHASES[1].hex, 2: PHASES[2].hex, 3: PHASES[3].hex, 4: PHASES[4].hex };
+  // ─── MANDALA: data real de um dia do ciclo (a partir de cycleStartDate) ───
+  function mandalaDateForDay(day) {
+    try {
+      var startStr = lsGet('cycleStartDate');
+      if (!startStr) return '';
+      var startDay = parseInt(lsGet('cycleStartDay') || '1', 10);
+      var base = parseLocalDate(startStr);
+      var dt = new Date(base.getTime() + (day - startDay) * 86400000);
+      var dd = ('0' + dt.getDate()).slice(-2);
+      var mm = ('0' + (dt.getMonth() + 1)).slice(-2);
+      return dd + '/' + mm;
+    } catch (e) { return ''; }
+  }
 
-    var svg = '<svg width="' + actualSize + '" height="' + actualSize + '" style="position:absolute;inset:0">';
+  // ─── MANDALA: área visual (SVG + centro + indicador de hoje + labels de fase) ───
+  function buildMandalaStage(actualSize, clickable, filter) {
+    var maxDay = (filter === 'current') ? Math.max(1, state.currentDay || 1) : 28;
+    var phaseColors = { 1: PHASES[1].hex, 2: PHASES[2].hex, 3: PHASES[3].hex, 4: PHASES[4].hex };
+    var cx = actualSize / 2, cy = actualSize / 2;
+
+    var entries = getDayEntries(state.journalData);
+    var filled = entries.filter(function(p) { var d = p[1]; return d && (d.physicalLevel || d.mood) && parseInt(p[0], 10) <= maxDay; }).length;
+    var pct = filled / (filter === 'current' ? maxDay : 28);
+    var moodCounts = {};
+    entries.forEach(function(p) { var d = p[1]; if (d && d.mood && parseInt(p[0], 10) <= maxDay) moodCounts[d.mood] = (moodCounts[d.mood] || 0) + 1; });
+    var topMood = Object.entries(moodCounts).sort(function(a, b) { return b[1] - a[1]; })[0];
+    var topEmoji = topMood ? (topMood[0].split(' ')[0]) : '✨';
+
+    var svg = '<svg width="' + actualSize + '" height="' + actualSize + '" style="position:absolute;inset:0;overflow:visible">';
     [0.87, 0.7, 0.53].forEach(function(r) {
-      svg += '<circle cx="' + (actualSize/2) + '" cy="' + (actualSize/2) + '" r="' + (actualSize/2*r-2) + '" fill="none" stroke="' + T.border + '" stroke-width="1" stroke-dasharray="4 7" opacity="0.5"/>';
+      svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (actualSize/2*r-2) + '" fill="none" stroke="' + T.border + '" stroke-width="1" stroke-dasharray="4 7" opacity="0.5"/>';
     });
-    days.forEach(function(day, idx) {
-      var energy = parseInt((state.journalData[day] || {}).physicalLevel) || 0;
+
+    var drawn = 0;
+    for (var day = 1; day <= 28; day++) {
+      if (day > maxDay) continue;
+      var idx = day - 1;
+      var d = state.journalData[day] || {};
+      var energy = parseInt(d.physicalLevel) || 0;
       var angle = (idx / 28 * 360 - 90) * Math.PI / 180;
-      var ph = getPhaseByDay(day);
-      var color = phaseColors[ph];
+      var color = phaseColors[getPhaseByDay(day)];
       var maxL = actualSize / 2 * 0.35, minL = actualSize / 2 * 0.11;
       var barL = energy > 0 ? minL + (energy / 10) * (maxL - minL) : minL * 0.32;
       var ir = actualSize / 2 * 0.2;
       var isToday = day === state.currentDay;
-      var x1 = actualSize/2 + ir * Math.cos(angle), y1 = actualSize/2 + ir * Math.sin(angle);
-      var x2 = actualSize/2 + (ir + barL) * Math.cos(angle), y2 = actualSize/2 + (ir + barL) * Math.sin(angle);
-      if (clickable) {
-        svg += '<g class="mandala-day" data-day="' + day + '" style="cursor:pointer">';
-      } else {
-        svg += '<g>';
-      }
-      svg += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + (energy > 0 ? color : T.borderLt) + '" stroke-width="' + (isToday ? 5 : 2.5) + '" stroke-linecap="round" opacity="' + (energy > 0 ? 0.85 : 0.3) + '"/>';
-      if (isToday && energy > 0) svg += '<circle cx="' + x2 + '" cy="' + y2 + '" r="3.5" fill="' + color + '"/>';
+      var x1 = cx + ir * Math.cos(angle), y1 = cy + ir * Math.sin(angle);
+      var x2 = cx + (ir + barL) * Math.cos(angle), y2 = cy + (ir + barL) * Math.sin(angle);
+      var delay = (drawn * 0.028).toFixed(3);
+      drawn++;
+      var gAttrs = clickable
+        ? ' class="mandala-day" data-day="' + day + '" data-energy="' + energy + '" data-mood="' + esc(d.mood || '') + '" data-date="' + mandalaDateForDay(day) + '" style="cursor:pointer"'
+        : '';
+      svg += '<g' + gAttrs + '>';
+      if (clickable) svg += '<circle cx="' + x2 + '" cy="' + y2 + '" r="14" fill="transparent"/>';
+      svg += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + (energy > 0 ? color : T.borderLt) + '" stroke-width="' + (isToday ? 5 : 2.5) + '" stroke-linecap="round" opacity="' + (energy > 0 ? 0.85 : 0.3) + '" style="stroke-dasharray:' + barL.toFixed(2) + ';stroke-dashoffset:' + barL.toFixed(2) + ';animation:mandalaGrow 0.5s ease ' + delay + 's forwards"/>';
+      if (isToday && energy > 0) svg += '<circle cx="' + x2 + '" cy="' + y2 + '" r="3.5" fill="' + color + '" style="opacity:0;animation:mandalaFade 0.4s ease ' + (0.3 + drawn * 0.01).toFixed(2) + 's forwards"/>';
       svg += '</g>';
-    });
+    }
     svg += '</svg>';
 
-    // Center
-    var center = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">' +
+    // Labels de fase (posicionados no centro de cada arco de 7 dias)
+    var phaseLabels = '';
+    [{ p: 1, day: 4 }, { p: 2, day: 11 }, { p: 3, day: 18 }, { p: 4, day: 25 }].forEach(function(pl) {
+      if (pl.day > maxDay) return;
+      var a = ((pl.day - 1) / 28 * 360 - 90) * Math.PI / 180;
+      var rad = actualSize / 2 * 0.82;
+      var lx = cx + rad * Math.cos(a), ly = cy + rad * Math.sin(a);
+      var ph = PHASES[pl.p];
+      phaseLabels += '<span style="position:absolute;left:' + lx + 'px;top:' + ly + 'px;transform:translate(-50%,-50%);font-size:0.58rem;font-weight:700;letter-spacing:0.02em;color:' + ph.hex + ';background:' + T.parchment + ';border:1px solid ' + ph.border + ';border-radius:9999px;padding:2px 7px;white-space:nowrap;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,0.25)">' + ph.name + '</span>';
+    });
+
+    var center = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">' +
       '<div style="width:' + (actualSize*0.23) + 'px;height:' + (actualSize*0.23) + 'px;border-radius:50%;background:' + T.white + ';border:2px solid ' + T.border + ';box-shadow:inset 0 2px 6px rgba(0,0,0,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center">' +
       '<span style="font-size:' + (actualSize*0.07) + 'px">' + topEmoji + '</span>' +
       '<span style="font-size:' + (actualSize*0.04) + 'px;color:' + T.faint + ';font-weight:600">' + Math.round(pct*100) + '%</span>' +
       '</div></div>';
 
-    // Today indicator
-    var a = ((state.currentDay - 1) / 28 * 360 - 90) * Math.PI / 180;
-    var r2 = actualSize / 2 * 0.88;
-    var todayInd = '<div style="position:absolute;left:' + (actualSize/2 + r2 * Math.cos(a) - 8) + 'px;top:' + (actualSize/2 + r2 * Math.sin(a) - 8) + 'px;pointer-events:none">' +
-      '<div style="width:1rem;height:1rem;border-radius:50%;background:' + T.rose + ';border:2px solid ' + T.ink + ';box-shadow:0 2px 8px ' + T.rose + '60;animation:pulse 2s infinite"></div></div>';
+    var todayInd = '';
+    if (state.currentDay <= maxDay) {
+      var ta = ((state.currentDay - 1) / 28 * 360 - 90) * Math.PI / 180;
+      var r2 = actualSize / 2 * 0.88;
+      todayInd = '<div style="position:absolute;left:' + (cx + r2 * Math.cos(ta) - 8) + 'px;top:' + (cy + r2 * Math.sin(ta) - 8) + 'px;pointer-events:none">' +
+        '<div style="width:1rem;height:1rem;border-radius:50%;background:' + T.rose + ';border:2px solid ' + T.ink + ';box-shadow:0 2px 8px ' + T.rose + '60;animation:pulse 2s infinite"></div></div>';
+    }
 
-    var hint = pct < 0.14 ? '<p style="font-size:0.75rem;color:' + T.faint + ';font-style:italic;text-align:center;max-width:18rem;margin:0.5rem auto 0">🌱 Sua mandala está nascendo. Cada dia registrado a torna mais rica e expressiva.</p>' : '';
+    return svg + center + todayInd + phaseLabels;
+  }
 
-    var legend = '<div style="display:flex;gap:0.75rem;flex-wrap:wrap;justify-content:center;margin-top:0.75rem">';
-    [{ c: PHASES[1].hex, l: 'Renovação' }, { c: PHASES[2].hex, l: 'Crescimento' }, { c: PHASES[3].hex, l: 'Força' }, { c: PHASES[4].hex, l: 'Sabedoria' }].forEach(function(item) {
-      legend += '<span style="display:flex;align-items:center;gap:0.375rem;font-size:0.75rem;color:' + T.muted + '"><span style="width:0.5rem;height:0.5rem;border-radius:50%;background:' + item.c + '"></span>' + item.l + '</span>';
+  function _mandalaPill(value, active, label) {
+    var on = value === active;
+    return '<button type="button" class="mandala-filter-pill" data-filter="' + value + '" style="border:1px solid ' + (on ? T.rose : T.border) + ';background:' + (on ? T.rose : 'transparent') + ';color:' + (on ? '#fff' : T.muted) + ';border-radius:9999px;padding:0.4rem 0.9rem;font-size:0.74rem;font-weight:600;cursor:pointer;min-height:40px;touch-action:manipulation;transition:all .2s">' + label + '</button>';
+  }
+
+  // ─── MANDALA: módulo completo (controles + palco + tooltip + legenda + ajuda) ───
+  function renderMandala(size, clickable, filter) {
+    filter = filter || 'full';
+    var mobile = isMobile();
+    var actualSize = mobile ? Math.min(size, window.innerWidth - 80) : size;
+
+    var totalFilled = getDayEntries(state.journalData).filter(function(p) { var d = p[1]; return d && (d.physicalLevel || d.mood); }).length;
+
+    // Empty state encorajador + CTA
+    if (totalFilled === 0) {
+      return '<div class="mandala-module" data-size="' + size + '" data-clickable="' + (clickable ? 1 : 0) + '" data-filter="' + filter + '">' +
+        '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:0.85rem;min-height:' + actualSize + 'px;padding:1.5rem;border:1.5px dashed ' + T.border + ';border-radius:1.5rem;background:' + T.soft + '">' +
+        '<div style="font-size:2.5rem;animation:pulse 2.5s infinite">🌑</div>' +
+        '<h4 style="font-family:var(--serif);font-size:1.05rem;color:' + T.ink + ';margin:0">Sua mandala está esperando por você</h4>' +
+        '<p style="font-size:0.82rem;color:' + T.muted + ';max-width:17rem;margin:0;line-height:1.5">Cada dia que você registra acende um novo raio de luz. Comece hoje — um único check-in já começa a desenhar o mapa da sua energia. 🌙</p>' +
+        '<button type="button" class="btn mandala-start-btn" style="margin-top:0.25rem">✨ Registrar meu primeiro dia</button>' +
+        '</div></div>';
+    }
+
+    var controls = '<div class="mandala-controls" style="display:flex;gap:0.4rem;justify-content:center;margin-bottom:0.85rem;flex-wrap:wrap">' +
+      _mandalaPill('current', filter, 'Ver ciclo atual') +
+      _mandalaPill('full', filter, 'Ver histórico completo') +
+      '</div>';
+
+    var hint = totalFilled < 4 ? '<p style="font-size:0.75rem;color:' + T.faint + ';font-style:italic;text-align:center;max-width:18rem;margin:0.65rem auto 0">🌱 Sua mandala está nascendo. Cada dia registrado a torna mais rica e expressiva.</p>' : '';
+
+    var legend = '<div style="margin-top:0.85rem"><p style="font-size:0.66rem;text-transform:uppercase;letter-spacing:0.06em;color:' + T.faint + ';text-align:center;margin:0 0 0.4rem;font-weight:700">As 4 fases do seu ciclo</p><div style="display:flex;gap:0.75rem;flex-wrap:wrap;justify-content:center">';
+    [{ p: 1, l: 'Renovação' }, { p: 2, l: 'Crescimento' }, { p: 3, l: 'Força' }, { p: 4, l: 'Sabedoria' }].forEach(function(item) {
+      legend += '<span style="display:flex;align-items:center;gap:0.375rem;font-size:0.72rem;color:' + T.muted + '"><span style="width:0.6rem;height:0.6rem;border-radius:50%;background:' + PHASES[item.p].hex + '"></span>' + item.l + '</span>';
     });
-    legend += '</div>';
+    legend += '</div></div>';
 
-    return '<div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem">' +
-      '<div style="position:relative;width:' + actualSize + 'px;height:' + actualSize + 'px">' + svg + center + todayInd + '</div>' +
-      hint + legend + '</div>';
+    var tooltip = '<div class="mandala-tooltip" hidden style="margin-top:0.85rem;border-radius:1rem;border:1px solid ' + T.border + ';background:' + T.white + ';box-shadow:0 8px 24px rgba(0,0,0,0.25);padding:0.85rem 1rem;opacity:0;transform:translateY(6px);transition:opacity .25s ease,transform .25s ease"></div>';
+
+    var howto = '<div style="text-align:center;margin-top:0.85rem">' +
+      '<button type="button" class="mandala-howto-btn" style="background:' + T.parchment + ';border:1px solid ' + T.border + ';color:' + T.muted + ';border-radius:9999px;padding:0.5rem 1rem;font-size:0.78rem;font-weight:600;cursor:pointer;min-height:44px;touch-action:manipulation">❓ Como ler minha mandala</button>' +
+      '<div class="mandala-howto" hidden style="margin-top:0.6rem;text-align:left;background:' + T.soft + ';border:1px solid ' + T.border + ';border-radius:1rem;padding:0.9rem 1rem;font-size:0.8rem;line-height:1.6;color:' + T.ink + '">' +
+        '<p style="margin:0 0 0.5rem"><strong>Cada ponto representa um dia do seu ciclo.</strong></p>' +
+        '<p style="margin:0 0 0.35rem">📏 A <strong>distância do centro</strong> indica a sua energia naquele dia — quanto mais longo o raio, mais energia você tinha.</p>' +
+        '<p style="margin:0 0 0.35rem">🎨 As <strong>cores</strong> mostram em qual das 4 fases você estava.</p>' +
+        '<p style="margin:0">👆 Toque em qualquer ponto para ver o humor, a energia e a data daquele dia.</p>' +
+      '</div></div>';
+
+    return '<div class="mandala-module" data-size="' + size + '" data-clickable="' + (clickable ? 1 : 0) + '" data-filter="' + filter + '">' +
+      controls +
+      '<div class="mandala-stage" style="position:relative;width:' + actualSize + 'px;height:' + actualSize + 'px;margin:0 auto">' + buildMandalaStage(actualSize, clickable, filter) + '</div>' +
+      hint +
+      tooltip +
+      legend +
+      howto +
+      '</div>';
+  }
+
+  // ─── MANDALA: wiring de interações (tooltip, filtro, ajuda, animação) ───
+  function _wireMandalaDays(mod) {
+    mod.querySelectorAll('.mandala-day').forEach(function(g) {
+      if (g._b) return;
+      g._b = true;
+      g.addEventListener('click', function() {
+        var day = parseInt(g.getAttribute('data-day'), 10);
+        var energy = parseInt(g.getAttribute('data-energy'), 10) || 0;
+        var mood = g.getAttribute('data-mood') || '';
+        var date = g.getAttribute('data-date') || '';
+        _showMandalaTooltip(mod, day, energy, mood, date);
+      });
+    });
+  }
+
+  function _showMandalaTooltip(mod, day, energy, mood, date) {
+    var tt = mod.querySelector('.mandala-tooltip');
+    if (!tt) return;
+    var ph = PHASES[getPhaseByDay(day)];
+    var bars = '';
+    for (var i = 1; i <= 10; i++) bars += '<span style="flex:1;height:6px;border-radius:3px;background:' + (i <= energy ? ph.hex : T.borderLt) + '"></span>';
+    var moodHtml = mood ? esc(mood) : '<span style="color:' + T.faint + '">Sem registro neste dia</span>';
+    tt.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.5rem">' +
+        '<span style="font-weight:700;color:' + T.ink + ';font-size:0.9rem">Dia ' + day + (date ? ' · ' + date : '') + '</span>' +
+        '<button type="button" class="mandala-tt-close" aria-label="Fechar" style="background:none;border:none;color:' + T.faint + ';font-size:1.1rem;cursor:pointer;line-height:1;min-width:32px;min-height:32px">✕</button>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.5rem;font-size:0.8rem;color:' + T.muted + '">' +
+        '<span style="width:0.6rem;height:0.6rem;border-radius:50%;background:' + ph.hex + ';flex-shrink:0"></span>' + ph.name + ' · ' + ph.days + '</div>' +
+      '<div style="font-size:0.85rem;color:' + T.ink + ';margin-bottom:0.5rem">😊 Humor: ' + moodHtml + '</div>' +
+      '<div style="margin-bottom:0.6rem"><div style="font-size:0.78rem;color:' + T.muted + ';margin-bottom:0.25rem">⚡ Energia: ' + (energy > 0 ? energy + '/10' : '—') + '</div><div style="display:flex;gap:2px">' + bars + '</div></div>' +
+      '<button type="button" class="mandala-tt-open btn" style="width:100%">Abrir este dia →</button>';
+    tt.removeAttribute('hidden');
+    requestAnimationFrame(function() { tt.style.opacity = '1'; tt.style.transform = 'translateY(0)'; });
+    var cl = tt.querySelector('.mandala-tt-close');
+    if (cl) cl.addEventListener('click', function() { tt.style.opacity = '0'; tt.style.transform = 'translateY(6px)'; setTimeout(function() { tt.setAttribute('hidden', ''); }, 220); });
+    var op = tt.querySelector('.mandala-tt-open');
+    if (op) op.addEventListener('click', function() { updateCurrentDay(day); setView('daily'); });
+    try { tt.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
+  }
+
+  function wireMandala() {
+    document.querySelectorAll('.mandala-module').forEach(function(mod) {
+      _wireMandalaDays(mod);
+
+      var startBtn = mod.querySelector('.mandala-start-btn');
+      if (startBtn && !startBtn._b) { startBtn._b = true; startBtn.addEventListener('click', function() { setView('daily'); }); }
+
+      var hb = mod.querySelector('.mandala-howto-btn');
+      if (hb && !hb._b) {
+        hb._b = true;
+        hb.addEventListener('click', function() {
+          var box = mod.querySelector('.mandala-howto');
+          if (!box) return;
+          if (box.hasAttribute('hidden')) { box.removeAttribute('hidden'); hb.textContent = '✖ Fechar explicação'; }
+          else { box.setAttribute('hidden', ''); hb.textContent = '❓ Como ler minha mandala'; }
+        });
+      }
+
+      mod.querySelectorAll('.mandala-filter-pill').forEach(function(pill) {
+        if (pill._b) return;
+        pill._b = true;
+        pill.addEventListener('click', function() {
+          var f = pill.getAttribute('data-filter');
+          if (f === mod.getAttribute('data-filter')) return;
+          mod.setAttribute('data-filter', f);
+          var size = parseInt(mod.getAttribute('data-size'), 10) || 280;
+          var clickable = mod.getAttribute('data-clickable') === '1';
+          var actualSize = isMobile() ? Math.min(size, window.innerWidth - 80) : size;
+          var stage = mod.querySelector('.mandala-stage');
+          if (stage) stage.innerHTML = buildMandalaStage(actualSize, clickable, f);
+          mod.querySelectorAll('.mandala-filter-pill').forEach(function(p) {
+            var on = p.getAttribute('data-filter') === f;
+            p.style.border = '1px solid ' + (on ? T.rose : T.border);
+            p.style.background = on ? T.rose : 'transparent';
+            p.style.color = on ? '#fff' : T.muted;
+          });
+          var tt = mod.querySelector('.mandala-tooltip');
+          if (tt) { tt.setAttribute('hidden', ''); tt.style.opacity = '0'; }
+          _wireMandalaDays(mod);
+        });
+      });
+    });
   }
 
   // ─── FASE LUNAR (sem API — mês sinódico 29.53059d, referência 2000-01-06) ───
@@ -3461,14 +3626,8 @@
       };
     }
 
-    // Mandala clicks
-    document.querySelectorAll('.mandala-day').forEach(function(g) {
-      g.onclick = function() {
-        var day = parseInt(g.getAttribute('data-day'));
-        updateCurrentDay(day);
-        setView('daily');
-      };
-    });
+    // Mandala — wiring de interações (tooltip, filtro, ajuda)
+    try { wireMandala(); } catch(e) { console.warn('wireMandala failed (safe):', e && e.message); }
 
     // ─── MICRO-INTERAÇÕES ───
     // Ripple em botões .btn (toque/click)

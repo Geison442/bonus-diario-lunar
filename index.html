@@ -75,8 +75,52 @@
   <!-- ═══ SERVICE WORKER + STORAGE PERSIST ═══ -->
   <script>
     if ('serviceWorker' in navigator) {
+      var _swRefreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (_swRefreshing) return;
+        _swRefreshing = true;
+        window.location.reload();
+      });
+
+      function _activateUpdate(worker) {
+        if (worker) { try { worker.postMessage({ type: 'SKIP_WAITING' }); } catch (e) {} }
+      }
+
+      function _showUpdateToast(worker) {
+        if (document.getElementById('app-update-toast')) return;
+        var bar = document.createElement('div');
+        bar.id = 'app-update-toast';
+        bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;display:flex;'
+          + 'align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;padding:14px 18px;'
+          + 'background:rgba(23,15,46,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);'
+          + 'border-bottom:1px solid rgba(124,58,237,.55);color:#F8F7FD;'
+          + 'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:.875rem;'
+          + 'box-shadow:0 8px 32px rgba(0,0,0,.55);'
+          + 'transform:translateY(-110%);transition:transform .45s cubic-bezier(.16,1,.3,1)';
+        bar.innerHTML = '<span style="font-weight:600">✨ Nova versão do Diário Lunar disponível.</span>'
+          + '<button id="app-update-btn" style="cursor:pointer;border:none;border-radius:9999px;'
+          + 'padding:8px 18px;font-weight:700;color:#1A1206;'
+          + 'background:linear-gradient(135deg,#F5D061,#D4A537);'
+          + 'box-shadow:0 4px 14px rgba(212,165,55,.45)">Atualizar agora</button>';
+        document.body.appendChild(bar);
+        requestAnimationFrame(function() { bar.style.transform = 'translateY(0)'; });
+
+        var _auto = setTimeout(function() { _activateUpdate(worker); }, 5000);
+        var btn = document.getElementById('app-update-btn');
+        if (btn) btn.addEventListener('click', function() { clearTimeout(_auto); _activateUpdate(worker); });
+      }
+
       window.addEventListener('load', function() {
-        navigator.serviceWorker.register('./sw.js').catch(function(e) {
+        navigator.serviceWorker.register('./sw.js').then(function(reg) {
+          if (reg.waiting && navigator.serviceWorker.controller) _showUpdateToast(reg.waiting);
+          reg.addEventListener('updatefound', function() {
+            var nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener('statechange', function() {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) _showUpdateToast(nw);
+            });
+          });
+        }).catch(function(e) {
           console.warn('SW registration failed:', e);
         });
       });

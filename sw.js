@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
 // Diário Lunar — Service Worker (Stale-While-Revalidate)
 // ═══════════════════════════════════════════════════════════════════
-const CACHE_NAME = 'diariolunar-v16';
+const CACHE_NAME = 'diariolunar-v17';
 const FONTS_CACHE = 'diariolunar-fonts-v1';
 const OFFLINE_URL = './offline.html';
 
@@ -21,25 +21,33 @@ const PRECACHE_URLS = [
 ];
 
 // ─── INSTALL ───
+// NÃO chamar skipWaiting() aqui — o novo SW fica em "waiting" para o toast
+// premium de atualização poder aparecer e o usuário controlar a ativação.
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(PRECACHE_URLS))
   );
-  self.skipWaiting();
 });
 
 // ─── ACTIVATE ───
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(k => k !== CACHE_NAME && k !== FONTS_CACHE)
-          .map(k => caches.delete(k))
+    caches.keys()
+      .then(keys =>
+        Promise.all(
+          keys
+            .filter(k => k !== CACHE_NAME && k !== FONTS_CACHE)
+            .map(k => caches.delete(k))
+        )
       )
-    )
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
+});
+
+// ─── AUTO-UPDATE ───
+// Cliente envia SKIP_WAITING → ativa novo SW → controllerchange → reload.
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 // ─── FETCH: Stale-While-Revalidate ───
