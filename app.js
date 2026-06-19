@@ -20,6 +20,18 @@
   function lsGetJSON(key) { try { var v = lsGet(key); return v ? JSON.parse(v) : null; } catch(e) { return null; } }
   function lsSetJSON(key, val) { return lsSet(key, JSON.stringify(val)); }
 
+  // PT-5: re-hidrata estado em memória quando outra aba grava (evita last-write-wins)
+  window.addEventListener('storage', function(e) {
+    if (!e.key || e.key.indexOf(PREFIX) !== 0) return;
+    if (e.key === PREFIX + 'journalData') {
+      var jd = lsGetJSON('journalData');
+      if (jd && typeof jd === 'object' && !Array.isArray(jd)) {
+        state.journalData = jd;
+        try { render(); } catch(err) {}
+      }
+    }
+  });
+
   // ─── SVG ICON PATHS ───
   var ICONS = {
     moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
@@ -972,6 +984,9 @@
 
   // ─── DATA SAVE ───
   function saveData(dayOrKey, data) {
+    // PT-5: re-lê o blob fresco para não sobrescrever edições de outra aba (read-modify-write)
+    var fresh = lsGetJSON('journalData');
+    if (fresh && typeof fresh === 'object' && !Array.isArray(fresh)) state.journalData = fresh;
     var prev = state.journalData[dayOrKey] || {};
     state.journalData[dayOrKey] = Object.assign({}, prev, data);
     var ok = lsSetJSON('journalData', state.journalData);
