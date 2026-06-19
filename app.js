@@ -3768,8 +3768,9 @@
     importBackup: function(jsonStr) {
       try {
         var backup = JSON.parse(jsonStr);
-        if (backup.data) {
-          state.journalData = backup.data.journalData || {};
+        if (backup && typeof backup === 'object' && backup.data && typeof backup.data === 'object') {
+          var jd = backup.data.journalData;
+          state.journalData = (jd && typeof jd === 'object' && !Array.isArray(jd)) ? jd : {};
           state.currentDay = backup.data.currentDay || 1;
           state.dailyMode = backup.data.dailyMode || 'quick';
           lsSetJSON('journalData', state.journalData);
