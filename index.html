@@ -105,9 +105,9 @@
         document.body.appendChild(bar);
         requestAnimationFrame(function() { bar.style.transform = 'translateY(0)'; });
 
-        var _auto = setTimeout(function() { _activateUpdate(worker); }, 5000);
+        // PT-6: não auto-ativar — só atualiza quando o usuário clica, para não descartar trabalho em andamento
         var btn = document.getElementById('app-update-btn');
-        if (btn) btn.addEventListener('click', function() { clearTimeout(_auto); _activateUpdate(worker); });
+        if (btn) btn.addEventListener('click', function() { _activateUpdate(worker); });
       }
 
       window.addEventListener('load', function() {
