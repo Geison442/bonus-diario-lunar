@@ -10,15 +10,15 @@
   function lsSet(key, val) {
     try {
       localStorage.setItem(PREFIX + key, val);
+      return true;
     } catch(e) {
-      if (e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014)) {
-        try { showSuccessToast('⚠️ Armazenamento cheio — limpe dados do navegador'); } catch(te) {}
-      }
+      try { showSuccessToast('⚠️ Não foi possível salvar — armazenamento cheio ou navegação privada'); } catch(te) {}
+      return false;
     }
   }
   function lsRemove(key) { try { localStorage.removeItem(PREFIX + key); } catch(e) {} }
   function lsGetJSON(key) { try { var v = lsGet(key); return v ? JSON.parse(v) : null; } catch(e) { return null; } }
-  function lsSetJSON(key, val) { lsSet(key, JSON.stringify(val)); }
+  function lsSetJSON(key, val) { return lsSet(key, JSON.stringify(val)); }
 
   // ─── SVG ICON PATHS ───
   var ICONS = {
@@ -974,7 +974,13 @@
   function saveData(dayOrKey, data) {
     var prev = state.journalData[dayOrKey] || {};
     state.journalData[dayOrKey] = Object.assign({}, prev, data);
-    lsSetJSON('journalData', state.journalData);
+    var ok = lsSetJSON('journalData', state.journalData);
+    if (!ok) {
+      // Reverte o estado em memória para refletir que a gravação falhou (lsSet já avisou)
+      if (prev && Object.keys(prev).length) state.journalData[dayOrKey] = prev;
+      else delete state.journalData[dayOrKey];
+      return;
+    }
     showSaveToast();
     // Som de salvamento (528Hz)
     if (window.AudioManager) { try { AudioManager.playSaveBell(); AudioManager.haptic(20); } catch(e) {} }
