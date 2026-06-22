@@ -1176,6 +1176,7 @@
       document.addEventListener('visibilitychange', function() {
         try {
           if (document.hidden) {
+            try { flushAllDebouncers(); } catch(e) {}
             if (window.AudioManager) {
               try { AudioManager.stopAll(0.3); } catch(e) {}
             }
@@ -1188,6 +1189,7 @@
 
       // App fechando — encerra tudo e fecha AudioContext
       window.addEventListener('pagehide', function() {
+        try { flushAllDebouncers(); } catch(e) {}
         try { self.stopEverything(); } catch(e) {}
         if (window.AudioManager) {
           try { AudioManager.stopEverything(); } catch(e) {}
@@ -1478,14 +1480,28 @@
   }
 
   // ─── DEBOUNCE (preserva foco em inputs/textareas) ───
+  // BUG crítico #2: o debounce não tinha flush — fechar/ocultar a aba dentro da
+  // janela de `delay`ms descartava o último trecho digitado. Agora cada debouncer
+  // expõe .flush() e se registra para gravação forçada ao sair (pagehide/visibilitychange).
+  var _pendingDebouncers = [];
   function makeDebouncer(fn, delay) {
-    var t = null;
-    return function() {
-      var args = arguments;
-      var ctx = this;
+    var t = null, lastArgs = null, lastCtx = null;
+    function debounced() {
+      lastArgs = arguments; lastCtx = this;
       clearTimeout(t);
-      t = setTimeout(function() { fn.apply(ctx, args); }, delay);
+      t = setTimeout(function() { t = null; var a = lastArgs; lastArgs = null; fn.apply(lastCtx, a); }, delay);
+    }
+    debounced.flush = function() {
+      if (t) { clearTimeout(t); t = null; }
+      if (lastArgs) { var a = lastArgs; lastArgs = null; fn.apply(lastCtx, a); }
     };
+    _pendingDebouncers.push(debounced);
+    return debounced;
+  }
+  function flushAllDebouncers() {
+    for (var i = 0; i < _pendingDebouncers.length; i++) {
+      try { _pendingDebouncers[i].flush(); } catch(e) {}
+    }
   }
 
   // ─── SAVE FEEDBACK INDICATOR (sem perder foco) ───
