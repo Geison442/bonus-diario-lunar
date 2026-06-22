@@ -124,9 +124,10 @@
       var startDay = parseInt(lsGet('cycleStartDay') || '1', 10);
       if (!startDateStr) return null;
       var startDate = parseLocalDate(startDateStr);
-      var today = new Date();
+      var today = new Date(); today.setHours(12, 0, 0, 0);
       var diffDays = Math.floor((today - startDate) / 86400000);
-      return Math.min(28, Math.max(1, startDay + diffDays));
+      var raw = startDay + diffDays;
+      return ((raw - 1) % 28 + 28) % 28 + 1;
     } catch(e) { return null; }
   }
 
