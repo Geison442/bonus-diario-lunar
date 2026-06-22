@@ -1029,6 +1029,12 @@
     state.currentDay = day;
     state._customPrompt = null;
     lsSet('currentDay', day.toString());
+  }
+  // BUG crítico #3: a navegação (prev/next/swipe/timeline/busca) chamava
+  // updateCurrentDay, que reescrevia a âncora do ciclo para "hoje = dia N",
+  // destruindo a data real de início. A âncora só deve ser fixada quando o
+  // usuário declara explicitamente o dia atual: onboarding e aceitar avanço.
+  function setCycleAnchor(day) {
     var today = new Date().toISOString().split('T')[0];
     lsSet('cycleStartDate', today);
     lsSet('cycleStartDay', day.toString());
@@ -2752,7 +2758,7 @@
     el.classList.remove('hidden');
     document.getElementById('day-advance-bg').onclick = function() { state.suggestedDay = null; el.innerHTML = ''; el.classList.add('hidden'); };
     document.getElementById('btn-dismiss-advance').onclick = function() { state.suggestedDay = null; el.innerHTML = ''; el.classList.add('hidden'); };
-    document.getElementById('btn-accept-advance').onclick = function() { updateCurrentDay(state.suggestedDay); state.suggestedDay = null; el.innerHTML = ''; el.classList.add('hidden'); setView('daily'); };
+    document.getElementById('btn-accept-advance').onclick = function() { var d = state.suggestedDay; updateCurrentDay(d); setCycleAnchor(d); state.suggestedDay = null; el.innerHTML = ''; el.classList.add('hidden'); setView('daily'); };
   }
 
   function showOnboarding() {
@@ -2863,6 +2869,7 @@
         dayOfCycle = Math.min(28, Math.max(1, ((diff % 28) + 28) % 28 || 28));
       } catch(e) { dayOfCycle = 1; }
       updateCurrentDay(dayOfCycle);
+      setCycleAnchor(dayOfCycle);
       if (onbIntent) {
         saveData(dayOfCycle, { intention: onbIntent });
       }
